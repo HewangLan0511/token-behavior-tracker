@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#1E1B4B" />
+      <stop offset="100%" stop-color="#090D16" />
+    </linearGradient>
+    <linearGradient id="ringGrad1" x1="40" y1="40" x2="216" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#818CF8" />
+      <stop offset="100%" stop-color="#C084FC" />
+    </linearGradient>
+    <linearGradient id="ringGrad2" x1="200" y1="56" x2="64" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+    <linearGradient id="sparkGrad" x1="100" y1="76" x2="156" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="50%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Rounded Square Container with ~10% margin (26px) -->
+  <rect x="26" y="26" width="204" height="204" rx="46" fill="url(#bgGrad)" stroke="#475569" stroke-width="3" stroke-opacity="0.6" />
+
+  <!-- Subtle Inner Grid / Tech Accents -->
+  <circle cx="128" cy="128" r="76" stroke="#334155" stroke-width="2" stroke-dasharray="4 6" opacity="0.5" />
+
+  <!-- Outer Gauge Track -->
+  <path d="M 68.6 175.4 A 76 76 0 1 1 187.4 175.4" stroke="#1E293B" stroke-width="14" stroke-linecap="round" />
+
+  <!-- Primary Context / Token Gauge Arc -->
+  <path d="M 68.6 175.4 A 76 76 0 1 1 178 71" stroke="url(#ringGrad1)" stroke-width="14" stroke-linecap="round" filter="url(#glow)" />
+
+  <!-- Secondary Cache Hit Arc -->
+  <path d="M 83.3 163.6 A 57 57 0 1 1 172.7 163.6" stroke="#1E293B" stroke-width="9" stroke-linecap="round" />
+  <path d="M 83.3 163.6 A 57 57 0 1 1 164 84" stroke="url(#ringGrad2)" stroke-width="9" stroke-linecap="round" />
+
+  <!-- Central AI Spark Icon -->
+  <path d="M 128 78 C 129.5 100 136 106.5 158 108 C 136 109.5 129.5 116 128 138 C 126.5 116 120 109.5 98 108 C 120 106.5 126.5 100 128 78 Z" fill="url(#sparkGrad)" filter="url(#glow)" />
+  <circle cx="156" cy="84" r="4" fill="#34D399" />
+  <circle cx="100" cy="132" r="3.5" fill="#38BDF8" />
+
+  <!-- Bottom Telemetry Bars -->
+  <rect x="96" y="160" width="12" height="22" rx="4" fill="#38BDF8" />
+  <rect x="114" y="150" width="12" height="32" rx="4" fill="#818CF8" />
+  <rect x="132" y="156" width="12" height="26" rx="4" fill="#C084FC" />
+  <rect x="150" y="144" width="12" height="38" rx="4" fill="#34D399" />
+</svg>

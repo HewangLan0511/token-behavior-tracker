@@ -1,0 +1,12 @@
+{
+  "name": "token-behavior-tracker",
+  "displayName": "Token & AI Behavior Tracker",
+  "version": "1.0.0",
+  "description": "Track per-conversation and global token usage, prompt cache hit rates, context composition, Swarm fleet telemetry, and AI tool behaviors with an interactive dashboard (inspired by dsh-context).",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "打开全局 Token 与 AI 行为洞察面板，查看所有对话的消耗与缓存命中率",
+    "分析当前对话的上下文构成、Prompt 缓存命中率以及多 Agent 舰队消耗",
+    "导出最近 7 天的 Token 消耗与 AI 工具调用行为分析报告"
+  ]
+}

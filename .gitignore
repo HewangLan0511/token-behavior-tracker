@@ -1,0 +1,17 @@
+# Local telemetry database & runtime caches (do NOT commit personal conversation logs)
+.data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,4097 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Token &amp; AI Behavior Tracker — dsh-context Edition</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      /* Fallback variables matching Antigravity host style tokens */
+      --bg-primary: var(--color-background-primary, #0d1117);
+      --bg-secondary: var(--color-background-secondary, #161b22);
+      --bg-tertiary: var(--color-background-tertiary, #1f2631);
+      --bg-elevated: rgba(255, 255, 255, 0.035);
+      --bg-hover: rgba(255, 255, 255, 0.06);
+
+      --text-primary: var(--color-text-primary, #e6edf3);
+      --text-secondary: var(--color-text-secondary, #9198a1);
+      --text-tertiary: var(--color-text-tertiary, #656d76);
+
+      --border-primary: var(--color-border-primary, #30363d);
+      --border-secondary: var(--color-border-secondary, #21262d);
+
+      --accent-primary: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+      --accent-indigo: #6366f1;
+
+      /* 5-Category Context Composition Colors */
+      --cat-system: #6366f1;
+      --cat-user: #06b6d4;
+      --cat-tool: #f59e0b;
+      --cat-output: #10b981;
+      --cat-thinking: #ec4899;
+
+      /* Token Type Colors */
+      --tok-cache: #10b981;
+      --tok-input: #3b82f6;
+      --tok-output: #a855f7;
+
+      --font-main: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif);
+      --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.22);
+    }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg-primary: var(--color-background-primary, #f8fafc);
+      --bg-secondary: var(--color-background-secondary, #ffffff);
+      --bg-tertiary: var(--color-background-tertiary, #f1f5f9);
+      --bg-elevated: rgba(15, 23, 42, 0.03);
+      --bg-hover: rgba(15, 23, 42, 0.06);
+
+      --text-primary: var(--color-text-primary, #0f172a);
+      --text-secondary: var(--color-text-secondary, #475569);
+      --text-tertiary: var(--color-text-tertiary, #94a3b8);
+
+      --border-primary: var(--color-border-primary, #e2e8f0);
+      --border-secondary: var(--color-border-secondary, #f1f5f9);
+      --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-main);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-primary);
+      border-radius: 3px;
+    }
+
+    /* Layout Container */
+    .app-shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 14px 18px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 10px 16px;
+      box-shadow: var(--shadow-card);
+      position: sticky;
+      top: 8px;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2));
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent-primary);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      font-family: var(--font-mono);
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-tertiary);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-secondary);
+      flex-wrap: wrap;
+    }
+
+    .nav-tab {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .nav-tab.active {
+      background: var(--accent-primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    .nav-tab .tab-en {
+      font-size: 10.5px;
+      opacity: 0.78;
+      font-weight: 500;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 11px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+      border-color: #2563eb;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      display: inline-block;
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    .status-dot.syncing {
+      background: var(--accent-amber);
+      box-shadow: 0 0 8px var(--accent-amber);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* Tab Panels */
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .tab-panel.active {
+      display: flex;
+    }
+
+    /* Grid Systems */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Card Component */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 15px 16px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* KPI Card Specifics */
+    .kpi-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--kpi-accent, var(--accent-primary));
+      opacity: 0.85;
+    }
+
+    .kpi-label {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .kpi-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* Badges & Pills */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-primary);
+    }
+
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.14);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .badge-blue {
+      background: rgba(59, 130, 246, 0.14);
+      color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+
+    .badge-purple {
+      background: rgba(139, 92, 246, 0.14);
+      color: #a78bfa;
+      border-color: rgba(139, 92, 246, 0.35);
+    }
+
+    .badge-amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    .badge-rose {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border-color: rgba(244, 63, 94, 0.35);
+    }
+
+    .badge-cyan {
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      border-color: rgba(6, 182, 212, 0.35);
+    }
+
+    /* Progress & Breakdown Bars */
+    .token-bar-stack {
+      height: 7px;
+      width: 100%;
+      background: var(--bg-tertiary);
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .token-bar-seg {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    /* Heatmap 7x24 */
+    .heatmap-wrap {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: 44px repeat(24, minmax(16px, 1fr));
+      gap: 3px;
+      align-items: center;
+      min-width: 520px;
+    }
+
+    .heatmap-day-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      text-align: right;
+      padding-right: 6px;
+    }
+
+    .heatmap-hour-label {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      text-align: center;
+    }
+
+    .heatmap-cell {
+      aspect-ratio: 1 / 1;
+      min-height: 16px;
+      border-radius: 3px;
+      background: var(--bg-tertiary);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      transition: transform 0.12s ease;
+      cursor: pointer;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.25);
+      z-index: 2;
+      border-color: var(--text-primary);
+    }
+
+    /* Filter & Search Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .input-control, .select-control {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12.5px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .input-control:focus, .select-control:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .select-control option,
+    .select-control optgroup {
+      background-color: #161b22;
+      color: #e6edf3;
+    }
+
+    html[data-theme="light"] .select-control option,
+    html[data-theme="light"] .select-control optgroup {
+      background-color: #ffffff;
+      color: #0f172a;
+    }
+
+    /* Custom Searchable Session Picker */
+    .session-picker {
+      position: relative;
+      display: inline-block;
+      min-width: 260px;
+    }
+
+    .session-picker-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .session-picker-trigger:hover,
+    .session-picker.open .session-picker-trigger {
+      border-color: var(--accent-primary);
+      background: var(--bg-hover);
+    }
+
+    .session-picker-trigger-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .session-picker-trigger-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .session-picker-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      min-width: 340px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      z-index: 300;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .session-picker.open .session-picker-menu {
+      display: flex;
+    }
+
+    .session-picker-search-wrap {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+    }
+
+    .session-picker-search {
+      width: 100%;
+    }
+
+    .session-picker-list {
+      display: block;
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 6px;
+      background: var(--bg-secondary);
+    }
+
+    .session-picker-option {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+      text-align: left;
+      flex-shrink: 0;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-primary);
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .session-picker-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .session-picker-option.is-child {
+      padding-left: 22px;
+    }
+
+    .session-picker-option:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-primary);
+    }
+
+    .session-picker-option.active {
+      background: rgba(59, 130, 246, 0.16);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .session-picker-opt-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .session-picker-opt-badges {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .session-picker-opt-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.35;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .session-picker-group {
+      margin-bottom: 6px;
+      border-radius: var(--radius-sm);
+    }
+
+    .session-picker-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .session-picker-sub-toggle {
+      appearance: none;
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      background: rgba(139, 92, 246, 0.14);
+      color: #a78bfa;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.12s ease;
+    }
+
+    .session-picker-sub-toggle:hover {
+      background: rgba(139, 92, 246, 0.25);
+    }
+
+    .session-picker-children {
+      margin: 4px 0 4px 12px;
+      padding-left: 10px;
+      border-left: 2px solid rgba(139, 92, 246, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .subagents-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border-secondary);
+    }
+
+    .subagent-chip {
+      appearance: none;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.12s ease;
+      max-width: 280px;
+    }
+
+    .subagent-chip:hover {
+      border-color: var(--accent-primary);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .subagent-chip.active {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: var(--accent-primary);
+      color: var(--text-primary);
+    }
+
+    /* Conversation Cards (Parent-Child Grouped) */
+    .conv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conv-card {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conv-card:hover {
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .conv-card-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .conv-info {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 240px;
+      flex: 1;
+    }
+
+    .conv-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .conv-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .conv-title:hover {
+      color: var(--accent-primary);
+      text-decoration: underline;
+    }
+
+    .conv-metrics {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .conv-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .conv-stat-label {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+    }
+
+    .conv-stat-val {
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .conv-children-drawer {
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border-primary);
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .conv-children-drawer.open {
+      display: flex;
+    }
+
+    .child-conv-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-secondary);
+    }
+
+    /* Horizontal Breakdown List */
+    .h-bar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .h-bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .h-bar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      gap: 8px;
+    }
+
+    .h-bar-track {
+      height: 6px;
+      width: 100%;
+      background: var(--bg-tertiary);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .h-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent-primary);
+    }
+
+    /* Gauge Rings Layout */
+    .gauge-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .gauge-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .gauge-svg-wrap {
+      position: relative;
+      width: 116px;
+      height: 116px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .gauge-pct {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      line-height: 1.1;
+    }
+
+    .gauge-sub {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .gauge-details {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Timeline & Context Browser */
+    .timeline-list {
+      display: block;
+      max-height: 640px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .timeline-step {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+      transition: border-color 0.15s ease;
+    }
+
+    .timeline-step:last-child {
+      margin-bottom: 0;
+    }
+
+    .timeline-step:hover {
+      border-color: rgba(59, 130, 246, 0.45);
+    }
+
+    .timeline-step.is-error {
+      border-color: rgba(244, 63, 94, 0.5);
+    }
+
+    .timeline-step-header {
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .timeline-step-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-step-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .timeline-step-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
+    }
+
+    .timeline-step-summary {
+      font-size: 12px;
+      color: var(--text-primary);
+      line-height: 1.45;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      padding-left: 2px;
+    }
+
+    .timeline-step-summary.is-mono {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .timeline-step-error-line {
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: #fb7185;
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 4px;
+      padding: 4px 8px;
+      word-break: break-word;
+    }
+
+    .step-raw-drawer {
+      display: none;
+      padding: 12px;
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border-primary);
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step-raw-drawer.open {
+      display: flex;
+    }
+
+    .code-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 280px;
+      overflow-y: auto;
+      line-height: 1.45;
+    }
+
+    /* Hotspots Table/List */
+    .hotspot-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-sm);
+    }
+
+    .hotspot-path {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    /* Fleet View Cards */
+    .fleet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 12px;
+    }
+
+    .fleet-agent-card {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 13px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+
+    .fleet-agent-card.is-coordinator {
+      border-color: rgba(59, 130, 246, 0.55);
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.07), transparent);
+    }
+
+    /* Settings Form & Pricebook Table */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: var(--bg-tertiary);
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-secondary);
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-help {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    table.data-table th,
+    table.data-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    table.data-table th {
+      color: var(--text-secondary);
+      font-weight: 600;
+      background: var(--bg-tertiary);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--accent-primary);
+      border-radius: var(--radius-md);
+      padding: 9px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .empty-state {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      background: var(--bg-tertiary);
+      border: 1px dashed var(--border-primary);
+      border-radius: var(--radius-md);
+    }
+
+    /* SVG Chart Containers */
+    .chart-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Navigation Bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
+            <circle cx="12" cy="12" r="4" stroke="#10b981" />
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            <span>Token &amp; AI 行为观测中心</span>
+            <span class="brand-badge">dsh-context</span>
+          </div>
+          <div class="brand-sub" id="connection-status-text">MCP Apps Telemetry Bridge · 实时同步</div>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="global" onclick="switchTab('global')">
+          <span>📊 全局洞察</span>
+          <span class="tab-en">Global Insights</span>
+        </button>
+        <button class="nav-tab" data-tab="session" onclick="switchTab('session')">
+          <span>🔬 单对话深潜</span>
+          <span class="tab-en">Session Deep-Dive</span>
+        </button>
+        <button class="nav-tab" data-tab="fleet" onclick="switchTab('fleet')">
+          <span>🛸 多 Agent 舰队</span>
+          <span class="tab-en">Fleet View</span>
+        </button>
+        <button class="nav-tab" data-tab="settings" onclick="switchTab('settings')">
+          <span>⚙️ 设置与导出</span>
+          <span class="tab-en">Settings &amp; Export</span>
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <button class="btn btn-sm" id="btn-nav-back" onclick="goBackTab()" style="display:none;" title="返回上一视图">
+          <span>↩ 返回上页</span>
+        </button>
+        <select id="days-filter" class="select-control" onchange="onChangeDays(this.value)" title="统计时间窗口">
+          <option value="7">最近 7 天 (7d)</option>
+          <option value="14">最近 14 天 (14d)</option>
+          <option value="30">最近 30 天 (30d)</option>
+          <option value="90">全部历史 (90d)</option>
+        </select>
+        <button class="btn" id="btn-sync" onclick="syncAllNow(false)" title="增量扫描 brain/ 日志并刷新">
+          <span class="status-dot" id="sync-dot"></span>
+          <span id="sync-btn-label">同步刷新 (Sync)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: GLOBAL INSIGHTS (全局洞察)                                  -->
+    <!-- ================================================================= -->
+    <section id="panel-global" class="tab-panel active">
+      <!-- KPI Cards Band -->
+      <div class="kpi-grid" id="global-kpi-grid"></div>
+
+      <!-- 7-Day Trend + 7x24 Activity Heatmap -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📈 每日 Token 与缓存命中趋势 <span class="card-subtitle">Daily Token &amp; Prefix Cache Trend</span></div>
+            </div>
+            <div class="legend-row">
+              <span class="legend-item"><span class="legend-dot" style="background:var(--tok-cache)"></span>Cache Read</span>
+              <span class="legend-item"><span class="legend-dot" style="background:var(--tok-input)"></span>Fresh Input</span>
+              <span class="legend-item"><span class="legend-dot" style="background:var(--tok-output)"></span>Output</span>
+            </div>
+          </div>
+          <div id="global-trend-chart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔥 7×24 全时段活跃热力图 <span class="card-subtitle">Temporal Activity &amp; Tool Heatmap</span></div>
+            </div>
+            <span class="badge" id="heatmap-summary-badge">7 Days × 24 Hours</span>
+          </div>
+          <div class="heatmap-wrap" id="global-heatmap-container"></div>
+        </div>
+      </div>
+
+      <!-- Aggregate Composition Ring + Model Share + Top AI Tools -->
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🍩 全局上下文五维构成 <span class="card-subtitle">Aggregate Context Composition</span></div>
+          </div>
+          <div id="global-composition-ring"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🧠 模型调用与缓存效率分布 <span class="card-subtitle">Model Share &amp; Cache Hit %</span></div>
+          </div>
+          <div id="global-model-breakdown" class="h-bar-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🛠️ 高频 AI 工具行为排行 <span class="card-subtitle">Top AI Tool Invocations &amp; Latency</span></div>
+          </div>
+          <div id="global-tool-breakdown" class="h-bar-list"></div>
+        </div>
+      </div>
+
+      <!-- Filterable Parent-Child Grouped Conversation List -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🗂️ 全部记录会话列表（支持父子 Swarm 舰队聚合） <span class="card-subtitle">Recorded Conversations &amp; Attached Swarm Fleets</span></div>
+          </div>
+          <div class="filter-bar">
+            <input type="text" id="conv-search-input" class="input-control" placeholder="搜索标题 / Conversation ID / 模型 / Role..." oninput="renderConversationList()" style="min-width:240px;" />
+            <select id="conv-sort-select" class="select-control" onchange="renderConversationList()">
+              <option value="recent">排序：最近活跃 (Recent)</option>
+              <option value="fleet_tokens">排序：舰队总 Token (Fleet Tokens)</option>
+              <option value="own_tokens">排序：单会话 Token (Own Tokens)</option>
+              <option value="cache_hit">排序：缓存命中率 (Cache Hit %)</option>
+              <option value="tools">排序：工具调用数 (Tool Calls)</option>
+            </select>
+          </div>
+        </div>
+        <div id="global-conv-list" class="conv-list"></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: SESSION DEEP-DIVE (单对话深潜)                              -->
+    <!-- ================================================================= -->
+    <section id="panel-session" class="tab-panel">
+      <!-- Session Selector & Header Banner -->
+      <div class="card" id="session-header-card" style="position:relative;z-index:30;overflow:visible;">
+        <div class="filter-bar">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;">
+            <span style="font-weight:700;font-size:13px;">🎯 选择目标会话 (Session):</span>
+            <div id="session-picker-session" class="session-picker" style="min-width:300px;max-width:600px;flex:1;"></div>
+            <button class="btn btn-sm" onclick="switchTab('fleet')">🛸 查看所属多 Agent 舰队</button>
+          </div>
+          <div id="session-header-badges" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+        <div id="session-meta-bar" class="legend-row" style="padding-top:4px;border-top:1px solid var(--border-secondary);"></div>
+        <div id="session-subagents-bar" class="subagents-bar" style="display:none;"></div>
+      </div>
+
+      <!-- Triple Gauge Rings: Context Pressure + Cache Hit + 5-Category Composition -->
+      <div class="gauge-row">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🌊 上下文窗口水位 <span class="card-subtitle">Context Window Pressure</span></div>
+            <span class="badge" id="session-pressure-badge">--</span>
+          </div>
+          <div id="session-pressure-gauge"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚡ Prompt 缓存命中率 <span class="card-subtitle">Session Prefix Cache Efficiency</span></div>
+            <span class="badge badge-emerald" id="session-cache-badge">--</span>
+          </div>
+          <div id="session-cache-gauge"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🧩 会话上下文构成拆解 <span class="card-subtitle">5-Category Token Attribution</span></div>
+          </div>
+          <div id="session-composition-gauge"></div>
+        </div>
+      </div>
+
+      <!-- Turn-by-Turn Evolution & Prefix Cache Stability Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📉 逐轮上下文演进与前缀缓存稳定性图 <span class="card-subtitle">Turn-by-Turn Context Evolution &amp; Cache Drop Detector</span></div>
+          </div>
+          <div class="legend-row">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--tok-cache)"></span>Cache Read</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--tok-input)"></span>Fresh Input</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--tok-output)"></span>Model Output</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--accent-rose);border-radius:50%;"></span>⚠️ 前缀缓存雪崩/失效 (Cache Drop)</span>
+          </div>
+        </div>
+        <div id="session-turn-chart"></div>
+      </div>
+
+      <!-- File & Command Hotspots -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📂 高频访问文件热点 <span class="card-subtitle">File Hotspots (一键在 Antigravity 侧边栏打开)</span></div>
+          </div>
+          <div id="session-file-hotspots" class="h-bar-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">💻 终端命令执行热点 <span class="card-subtitle">Executed Shell Command Hotspots</span></div>
+          </div>
+          <div id="session-command-hotspots" class="h-bar-list"></div>
+        </div>
+      </div>
+
+      <!-- AI Behavior Timeline & On-Demand Context Browser -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🔍 AI 单步行为时间线与原文钻取浏览器 <span class="card-subtitle">AI Behavior Timeline &amp; On-Demand Transcript Context Browser</span></div>
+          </div>
+          <div class="filter-bar">
+            <select id="timeline-filter-type" class="select-control" onchange="renderSessionTimeline()">
+              <option value="ALL">全部事件 (All Steps)</option>
+              <option value="PLANNER_RESPONSE">仅模型响应 (PLANNER_RESPONSE)</option>
+              <option value="TOOL_CALL">仅工具调用 (TOOL_CALL)</option>
+              <option value="USER_INPUT">仅用户输入 (USER_INPUT)</option>
+              <option value="ERROR">仅异常/缓存失效 (Errors &amp; Drops)</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-secondary);">
+          💡 点击任意步骤将实时调用 <code>app_get_step_raw</code> 按字节偏移读取 <code>transcript.jsonl</code> 中的完整原始 <code>thinking</code> 思维链、<code>tool_calls</code> 参数、执行耗时与 Token 头信息。
+        </div>
+        <div id="session-timeline-list" class="timeline-list"></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: FLEET VIEW (多 Agent 舰队)                                  -->
+    <!-- ================================================================= -->
+    <section id="panel-fleet" class="tab-panel">
+      <div class="card" style="position:relative;z-index:30;overflow:visible;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🛸 多 Agent 协同舰队拓扑与 Token 分摊全景 <span class="card-subtitle">Multi-Agent Swarm &amp; Subagent Hierarchy Telemetry</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--text-secondary);">切换主会话/成员：</span>
+            <div id="session-picker-fleet" class="session-picker" style="min-width:280px;max-width:520px;flex:1;"></div>
+          </div>
+        </div>
+        <div id="fleet-overview-banner"></div>
+      </div>
+
+      <div id="fleet-plan-card" class="card" style="display:none;"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🤖 舰队成员工作负载与缓存效率卡片 <span class="card-subtitle">Per-Agent Workload, Token Share &amp; Deep-Dive Jump</span></div>
+        </div>
+        <div id="fleet-agents-grid" class="fleet-grid"></div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: SETTINGS & EXPORT (设置与导出)                              -->
+    <!-- ================================================================= -->
+    <section id="panel-settings" class="tab-panel">
+      <div class="grid-2">
+        <!-- Context Thresholds & Hook Settings -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚙️ 上下文窗口水位阈值与提醒钩子 <span class="card-subtitle">Context Budget &amp; Passive `/compact` Hook</span></div>
+            <button class="btn btn-primary" onclick="saveSettingsFromForm()">💾 保存配置 (Save Settings)</button>
+          </div>
+          <div class="settings-grid">
+            <div class="form-field">
+              <label class="form-label" for="set-warn-threshold">
+                <span>⚠️ 上下文预警阈值 (Warn Threshold)</span>
+                <span class="badge badge-amber">Tokens</span>
+              </label>
+              <input type="number" id="set-warn-threshold" class="input-control" value="120000" step="5000" />
+              <div class="form-help">当单轮输入 + 缓存读取超过该值时，仪表盘标记黄色预警并在对话中温和提醒 <code>/compact</code>。</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label" for="set-window-limit">
+                <span>🛑 上下文窗口上限 (Window Limit)</span>
+                <span class="badge badge-rose">Tokens</span>
+              </label>
+              <input type="number" id="set-window-limit" class="input-control" value="200000" step="10000" />
+              <div class="form-help">用于计算上下文窗口水位占用百分比（默认 200,000 tokens）。</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label" for="set-enable-hook">
+                <span>🔔 启用 PostInvocation 水位提醒</span>
+                <input type="checkbox" id="set-enable-hook" checked style="width:16px;height:16px;" />
+              </label>
+              <div class="form-help">启用后，当会话跨过预警线时通过 <code>PostInvocation</code> 钩子向聊天窗口发送非侵入式 <code>/compact</code> 建议。</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label" for="set-show-cost">
+                <span>💲 显示等价 API 成本与缓存节省金额</span>
+                <input type="checkbox" id="set-show-cost" checked style="width:16px;height:16px;" />
+              </label>
+              <div class="form-help">根据下方模型单价表估算等价 API 消耗 ($) 与前缀缓存为您省下的成本。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Export Center -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📤 遥测报告一键导出中心 <span class="card-subtitle">Export Markdown / JSON / CSV Telemetry Reports</span></div>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="export-scope-select">
+              <span>选择导出范围 (Export Scope)</span>
+            </label>
+            <select id="export-scope-select" class="select-control">
+              <option value="">🌐 全局汇总 + 所有会话报告 (Global Overview)</option>
+              <option value="CURRENT">🔬 当前选中的单对话详单 (Selected Conversation)</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runExportReport('markdown')">📝 导出 Markdown 报告</button>
+            <button class="btn" onclick="runExportReport('json')">📦 导出 JSON 遥测数据</button>
+            <button class="btn" onclick="runExportReport('csv')">📊 导出 CSV 明细表</button>
+            <button class="btn" onclick="copyExportPreview()">📋 复制内容</button>
+            <button class="btn" onclick="downloadExportPreview()">⬇️ 下载文件</button>
+          </div>
+          <pre id="export-preview-box" class="code-block" style="min-height:170px;max-height:260px;">点击上方导出按钮生成实时 Markdown / JSON / CSV 报告...</pre>
+        </div>
+      </div>
+
+      <!-- Editable Per-Model Pricebook -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">💰 模型 Token 单价表配置 ($ / 1M Tokens) <span class="card-subtitle">Per-Model API Pricebook Configuration</span></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="addPricebookRow()">➕ 新增模型规则</button>
+            <button class="btn btn-sm btn-primary" onclick="saveSettingsFromForm()">💾 保存单价表</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="pricebook-table">
+            <thead>
+              <tr>
+                <th>模型名称或前缀 (Model Key / Prefix)</th>
+                <th>Fresh Input ($ / 1M)</th>
+                <th>Cache Read ($ / 1M)</th>
+                <th>Model Output ($ / 1M)</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="pricebook-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    /*************************************************************************
+     * 1. GLOBAL STATE & FORMATTING UTILITIES
+     *************************************************************************/
+    const state = {
+      activeTab: 'global',
+      days: 7,
+      selectedConversationId: null,
+      overview: null,
+      detail: null,
+      settings: {
+        context_warn_threshold: 120000,
+        context_window_limit: 200000,
+        enable_context_warn_hook: true,
+        show_cost_estimates: true,
+        pricebook: {
+          default: { input_per_1m: 1.25, cache_read_per_1m: 0.125, output_per_1m: 5.0 }
+        }
+      },
+      expandedRoots: new Set(),
+      expandedSteps: new Map(), // key: `${convId}:${stepIndex}` -> rawData
+      pickerExpandedParents: new Set(),
+      openPickerId: null,
+      pickerSearch: '',
+      previousTab: null,
+      tabHistory: [],
+      lastExportText: '',
+      lastExportFormat: 'markdown',
+      hasReceivedInitialData: false,
+      hostCapabilities: {}
+    };
+
+    function fmtNum(n) {
+      const val = Number(n) || 0;
+      return val.toLocaleString('en-US');
+    }
+
+    function fmtCompact(n) {
+      const val = Number(n) || 0;
+      if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
+      if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+      if (val >= 1e3) return (val / 1e3).toFixed(1) + 'k';
+      return String(Math.round(val));
+    }
+
+    function fmtPct(ratioOrPct) {
+      let v = Number(ratioOrPct) || 0;
+      // Normalize: if v <= 1.0 and > 0 (or 0), check if it's 0..1 ratio vs 0..100
+      if (v > 0 && v <= 1.0) v = v * 100;
+      return v.toFixed(1) + '%';
+    }
+
+    function normRatio(ratioOrPct) {
+      let v = Number(ratioOrPct) || 0;
+      if (v > 1.0) return Math.min(1, v / 100);
+      return Math.max(0, Math.min(1, v));
+    }
+
+    function fmtUsd(usd) {
+      const v = Number(usd) || 0;
+      if (v === 0) return '$0.00';
+      if (v < 0.01) return '$' + v.toFixed(4);
+      return '$' + v.toFixed(2);
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '--';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso).slice(0, 19);
+        const pad = (x) => String(x).padStart(2, '0');
+        return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      } catch (e) {
+        return String(iso).slice(0, 19);
+      }
+    }
+
+    function escHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showToast(msg, durationMs = 2800) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.innerHTML = `<span>✨</span><span>${escHtml(msg)}</span>`;
+      container.appendChild(el);
+      setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, durationMs);
+    }
+
+    /*************************************************************************
+     * 2. MCP APPS JSON-RPC 2.0 POSTMESSAGE BRIDGE & HOST THEME INTEGRATION
+     *************************************************************************/
+    let rpcNextId = 1;
+    const pendingRequests = new Map();
+
+    function postToHost(payload) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+    }
+
+    function sendRpcRequest(method, params = {}, timeoutMs = 15000) {
+      return new Promise((resolve, reject) => {
+        const id = rpcNextId++;
+        const timer = setTimeout(() => {
+          pendingRequests.delete(id);
+          reject(new Error(`RPC timeout calling ${method}`));
+        }, timeoutMs);
+
+        pendingRequests.set(id, { resolve, reject, timer });
+        postToHost({
+          jsonrpc: '2.0',
+          id,
+          method,
+          params
+        });
+      });
+    }
+
+    function sendRpcNotification(method, params = {}) {
+      postToHost({
+        jsonrpc: '2.0',
+        method,
+        params
+      });
+    }
+
+    async function callServerTool(name, args = {}) {
+      setSyncIndicator(true);
+      try {
+        const res = await sendRpcRequest('tools/call', {
+          name,
+          arguments: args
+        });
+        if (res && res.structuredContent) {
+          return res.structuredContent;
+        }
+        if (res && Array.isArray(res.content) && res.content.length > 0) {
+          const text = res.content[0].text || '';
+          try {
+            return JSON.parse(text);
+          } catch (_) {
+            return { text, raw: res };
+          }
+        }
+        return res;
+      } finally {
+        setSyncIndicator(false);
+      }
+    }
+
+    function toFileUri(pathOrUri) {
+      if (!pathOrUri) return '';
+      let s = String(pathOrUri).trim();
+      if (s.startsWith('file://')) return s;
+      s = s.replace(/\\/g, '/');
+      if (/^[a-zA-Z]:\//.test(s)) {
+        return 'file:///' + s;
+      }
+      if (s.startsWith('/')) {
+        return 'file://' + s;
+      }
+      return 'file:///' + s;
+    }
+
+    async function openFileInSidePane(fileUri) {
+      const uri = toFileUri(fileUri);
+      if (!uri) return;
+      try {
+        const res = await sendRpcRequest('com.google.antigravity/toggle-aux-pane', {
+          tabType: 'fileView',
+          uri
+        }, 5000);
+        if (res && res.isError) {
+          await navigator.clipboard?.writeText(fileUri);
+          showToast(`当前视图无侧边栏，已复制路径: ${fileUri}`);
+        } else {
+          showToast(`已在侧边栏打开文件: ${uri.split('/').pop()}`);
+        }
+      } catch (err) {
+        try {
+          await navigator.clipboard?.writeText(fileUri);
+        } catch (_) {}
+        showToast(`已复制文件路径: ${fileUri}`);
+      }
+    }
+
+    function applyHostThemeAndStyles(ctx) {
+      if (!ctx) return;
+      if (ctx.theme === 'light' || ctx.theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', ctx.theme);
+        document.documentElement.style.colorScheme = ctx.theme;
+      }
+      const vars = ctx.styles && ctx.styles.variables;
+      if (vars && typeof vars === 'object') {
+        for (const [k, v] of Object.entries(vars)) {
+          if (k && v) {
+            document.documentElement.style.setProperty(k, String(v));
+          }
+        }
+      }
+    }
+
+    function notifySizeChanged() {
+      const h = Math.min(800, Math.max(320, document.documentElement.scrollHeight));
+      sendRpcNotification('ui/notifications/size-changed', { height: h });
+    }
+
+    window.addEventListener('message', (event) => {
+      const msg = event.data;
+      if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
+
+      // 1. Response to a request we sent
+      if (msg.id !== undefined && msg.method === undefined) {
+        const pending = pendingRequests.get(msg.id);
+        if (pending) {
+          clearTimeout(pending.timer);
+          pendingRequests.delete(msg.id);
+          if (msg.error) {
+            pending.reject(msg.error);
+          } else {
+            pending.resolve(msg.result);
+          }
+        }
+        return;
+      }
+
+      // 2. Incoming request from Host (e.g. ping)
+      if (msg.id !== undefined && msg.method) {
+        if (msg.method === 'ping') {
+          postToHost({ jsonrpc: '2.0', id: msg.id, result: {} });
+        } else {
+          postToHost({
+            jsonrpc: '2.0',
+            id: msg.id,
+            error: { code: -32601, message: 'Method not found' }
+          });
+        }
+        return;
+      }
+
+      // 3. Incoming notifications from Host
+      if (msg.method === 'ui/notifications/host-context-changed') {
+        applyHostThemeAndStyles(msg.params);
+      } else if (msg.method === 'ui/notifications/tool-input') {
+        const args = (msg.params && msg.params.arguments) || {};
+        if (args.days) {
+          state.days = Number(args.days) || 7;
+          const sel = document.getElementById('days-filter');
+          if (sel) sel.value = String(state.days);
+        }
+        if (args.conversation_id) {
+          state.selectedConversationId = args.conversation_id;
+        }
+        if (args.tab && ['global', 'session', 'fleet', 'settings'].includes(args.tab)) {
+          switchTab(args.tab, false);
+        }
+      } else if (msg.method === 'ui/notifications/tool-result') {
+        const params = msg.params || {};
+        let payload = params.structuredContent;
+        if (!payload && Array.isArray(params.content) && params.content[0]?.text) {
+          try {
+            payload = JSON.parse(params.content[0].text);
+          } catch (_) {}
+        }
+        if (payload) {
+          state.hasReceivedInitialData = true;
+          ingestPayload(payload);
+        }
+      }
+    });
+
+    async function initMcpApp() {
+      try {
+        const initRes = await sendRpcRequest('ui/initialize', {
+          protocolVersion: '2025-06-18',
+          appInfo: { name: 'Token & AI Tracker', version: '1.0.0' },
+          appCapabilities: {}
+        }, 2500);
+
+        if (initRes) {
+          state.hostCapabilities = initRes.hostCapabilities || {};
+          if (initRes.hostContext) {
+            applyHostThemeAndStyles(initRes.hostContext);
+          }
+        }
+      } catch (_) {
+        // Running standalone or host initialize didn't reply within 2.5s
+      }
+
+      sendRpcNotification('ui/notifications/initialized', {});
+
+      // If structuredContent hasn't arrived within 400ms, auto-fetch live data!
+      setTimeout(() => {
+        if (!state.hasReceivedInitialData) {
+          refreshAllData(false);
+        }
+      }, 400);
+    }
+
+    function setSyncIndicator(syncing) {
+      const dot = document.getElementById('sync-dot');
+      const label = document.getElementById('sync-btn-label');
+      if (dot) {
+        dot.classList.toggle('syncing', !!syncing);
+      }
+      if (label) {
+        label.textContent = syncing ? '同步中...' : '同步刷新 (Sync)';
+      }
+    }
+
+    /*************************************************************************
+     * 3. PAYLOAD INGESTION & DEFENSIVE SCHEMA NORMALIZATION
+     *************************************************************************/
+    function ingestPayload(data) {
+      if (!data || typeof data !== 'object') return;
+
+      // Support combined payload { view, overview, detail, settings }
+      if (data.overview && typeof data.overview === 'object') {
+        state.overview = normalizeOverview(data.overview);
+        if (state.overview.settings) {
+          state.settings = normalizeSettings(state.overview.settings);
+        }
+      } else if (data.kpis || data.conversations || data.daily_trend) {
+        state.overview = normalizeOverview(data);
+        if (state.overview.settings) {
+          state.settings = normalizeSettings(state.overview.settings);
+        }
+      }
+
+      if (data.detail && typeof data.detail === 'object') {
+        state.detail = normalizeDetail(data.detail);
+      } else if (data.conversation && (data.invocations || data.behavior_timeline || data.context_pressure)) {
+        state.detail = normalizeDetail(data);
+      }
+
+      if (data.settings && typeof data.settings === 'object') {
+        state.settings = normalizeSettings(data.settings);
+      }
+
+      if (state.detail && state.detail.conversation && state.detail.conversation.conversation_id) {
+        state.selectedConversationId = state.detail.conversation.conversation_id;
+      } else if (!state.selectedConversationId && state.overview && state.overview.conversations.length > 0) {
+        state.selectedConversationId = state.overview.conversations[0].conversation_id;
+      }
+
+      if (data.view && ['global', 'session', 'fleet', 'settings'].includes(data.view)) {
+        switchTab(data.view, false);
+      }
+
+      renderAll();
+    }
+
+    function normalizeSettings(raw) {
+      const def = {
+        context_warn_threshold: 120000,
+        context_window_limit: 200000,
+        enable_context_warn_hook: true,
+        show_cost_estimates: true,
+        pricebook: {
+          default: { input_per_1m: 1.25, cache_read_per_1m: 0.125, output_per_1m: 5.0 }
+        }
+      };
+      if (!raw || typeof raw !== 'object') return def;
+      return {
+        context_warn_threshold: Number(raw.context_warn_threshold) || def.context_warn_threshold,
+        context_window_limit: Number(raw.context_window_limit) || def.context_window_limit,
+        enable_context_warn_hook: raw.enable_context_warn_hook !== undefined ? Boolean(raw.enable_context_warn_hook) : true,
+        show_cost_estimates: raw.show_cost_estimates !== undefined ? Boolean(raw.show_cost_estimates) : true,
+        pricebook: (raw.pricebook && typeof raw.pricebook === 'object') ? raw.pricebook : def.pricebook
+      };
+    }
+
+    function normalizeComposition(comp, fallbackRow = {}) {
+      const c = comp || {};
+      const sys = Number(c.system_tokens ?? c.comp_system_tokens ?? fallbackRow.comp_system_tokens ?? fallbackRow.baseline_system_tokens ?? 0);
+      const usr = Number(c.user_tokens ?? c.comp_user_tokens ?? fallbackRow.comp_user_tokens ?? 0);
+      const tool = Number(c.tool_tokens ?? c.comp_tool_tokens ?? fallbackRow.comp_tool_tokens ?? 0);
+      const out = Number(c.output_tokens ?? c.comp_output_tokens ?? fallbackRow.comp_output_tokens ?? 0);
+      const thk = Number(c.thinking_tokens ?? c.comp_thinking_tokens ?? fallbackRow.comp_thinking_tokens ?? 0);
+      return {
+        system_tokens: Math.max(0, sys),
+        user_tokens: Math.max(0, usr),
+        tool_tokens: Math.max(0, tool),
+        output_tokens: Math.max(0, out),
+        thinking_tokens: Math.max(0, thk),
+        total: Math.max(0, sys + usr + tool + out + thk)
+      };
+    }
+
+    function normalizeConvRow(c) {
+      if (!c || typeof c !== 'object') return null;
+      const inp = Number(c.total_input_tokens ?? c.input_tokens ?? 0);
+      const cache = Number(c.total_cache_read_tokens ?? c.cache_read_tokens ?? 0);
+      const out = Number(c.total_output_tokens ?? c.output_tokens ?? 0);
+      const ownTotal = Number(c.total_tokens ?? (inp + cache + out));
+      const promptTotal = inp + cache;
+      const hitRatio = c.cache_hit_ratio !== undefined
+        ? normRatio(c.cache_hit_ratio)
+        : (promptTotal > 0 ? cache / promptTotal : 0);
+
+      const children = Array.isArray(c.children)
+        ? c.children.map(normalizeConvRow).filter(Boolean)
+        : [];
+      const childTokensSum = children.reduce((acc, ch) => acc + ch.total_tokens, 0);
+      const childToolsSum = children.reduce((acc, ch) => acc + ch.total_tool_calls, 0);
+
+      return {
+        conversation_id: String(c.conversation_id || ''),
+        title: String(c.title || c.conversation_id || '未命名会话 (Untitled Session)'),
+        parent_conversation_id: c.parent_conversation_id || null,
+        parent_title: String(c.parent_title || ''),
+        agent_role: String(c.agent_role || (c.parent_conversation_id ? 'worker' : 'main')),
+        workspace_path: String(c.workspace_path || ''),
+        primary_model: String(c.primary_model || c.model || 'unknown'),
+        created_at: c.created_at || '',
+        updated_at: c.updated_at || c.created_at || '',
+        total_invocations: Number(c.total_invocations ?? c.invocations ?? 0),
+        total_steps: Number(c.total_steps ?? 0),
+        total_tool_calls: Number(c.total_tool_calls ?? c.tool_calls ?? 0),
+        total_tool_errors: Number(c.total_tool_errors ?? c.tool_errors ?? 0),
+        user_turns: Number(c.user_turns ?? 0),
+        total_input_tokens: inp,
+        total_cache_read_tokens: cache,
+        total_output_tokens: out,
+        total_tokens: ownTotal,
+        peak_context_tokens: Number(c.peak_context_tokens ?? 0),
+        baseline_system_tokens: Number(c.baseline_system_tokens ?? 0),
+        cache_hit_ratio: hitRatio,
+        estimated_cost_usd: Number(c.estimated_cost_usd ?? c.cost_usd ?? 0),
+        estimated_cache_saved_usd: Number(c.estimated_cache_saved_usd ?? 0),
+        children,
+        child_count: Number(c.child_count ?? children.length),
+        fleet_total_tokens: Number(c.fleet_total_tokens ?? (ownTotal + childTokensSum)),
+        fleet_tool_calls: Number(c.fleet_tool_calls ?? (Number(c.total_tool_calls ?? 0) + childToolsSum)),
+        comp_system_tokens: Number(c.comp_system_tokens ?? 0),
+        comp_user_tokens: Number(c.comp_user_tokens ?? 0),
+        comp_tool_tokens: Number(c.comp_tool_tokens ?? 0),
+        comp_output_tokens: Number(c.comp_output_tokens ?? 0),
+        comp_thinking_tokens: Number(c.comp_thinking_tokens ?? 0)
+      };
+    }
+
+    function normalizeOverview(raw) {
+      const k = raw.kpis || {};
+      const convsRaw = Array.isArray(raw.conversations) ? raw.conversations : [];
+      let convs = convsRaw.map(normalizeConvRow).filter(Boolean);
+
+      // If flat list includes children with parent_conversation_id and parents have empty children, link them
+      const byId = new Map(convs.map(c => [c.conversation_id, c]));
+      const hasExplicitChildren = convs.some(c => c.children && c.children.length > 0);
+      if (!hasExplicitChildren && convs.some(c => c.parent_conversation_id)) {
+        const roots = [];
+        for (const c of convs) {
+          if (c.parent_conversation_id && byId.has(c.parent_conversation_id)) {
+            const p = byId.get(c.parent_conversation_id);
+            p.children.push(c);
+          } else {
+            roots.push(c);
+          }
+        }
+        for (const r of roots) {
+          r.child_count = r.children.length;
+          r.fleet_total_tokens = r.total_tokens + r.children.reduce((s, ch) => s + ch.total_tokens, 0);
+          r.fleet_tool_calls = r.total_tool_calls + r.children.reduce((s, ch) => s + ch.total_tool_calls, 0);
+        }
+        convs = roots;
+      }
+
+      const inp = Number(k.total_input_tokens ?? 0);
+      const cache = Number(k.total_cache_read_tokens ?? 0);
+      const out = Number(k.total_output_tokens ?? 0);
+      const totalTokens = Number(k.total_tokens ?? (inp + cache + out));
+      const avgHit = k.avg_cache_hit_ratio !== undefined
+        ? normRatio(k.avg_cache_hit_ratio)
+        : ((inp + cache) > 0 ? cache / (inp + cache) : 0);
+
+      let rootConvCount = convs.length;
+      let totalConvCount = convs.reduce((acc, c) => acc + 1 + (c.child_count || c.children.length), 0);
+      if (typeof k.total_conversations === 'number') {
+        totalConvCount = Math.max(totalConvCount, k.total_conversations);
+      } else if (k.total_conversations && typeof k.total_conversations === 'object') {
+        rootConvCount = Number(k.total_conversations.root ?? k.total_conversations.root_count ?? rootConvCount);
+        totalConvCount = Number(k.total_conversations.total ?? k.total_conversations.total_count ?? totalConvCount);
+      }
+      if (k.root_conversations !== undefined) rootConvCount = Number(k.root_conversations);
+
+      // Normalize 7x24 heatmap
+      const grid = Array.from({ length: 7 }, () =>
+        Array.from({ length: 24 }, () => ({ invocations: 0, total_tokens: 0 }))
+      );
+      const hm = raw.activity_heatmap;
+      if (Array.isArray(hm)) {
+        if (hm.length === 7 && Array.isArray(hm[0])) {
+          for (let d = 0; d < 7; d++) {
+            for (let h = 0; h < 24; h++) {
+              const cell = hm[d]?.[h];
+              if (typeof cell === 'number') {
+                grid[d][h] = { invocations: cell, total_tokens: cell };
+              } else if (cell && typeof cell === 'object') {
+                grid[d][h] = {
+                  invocations: Number(cell.invocations ?? cell.count ?? 0),
+                  total_tokens: Number(cell.total_tokens ?? cell.tokens ?? 0)
+                };
+              }
+            }
+          }
+        } else {
+          for (const item of hm) {
+            if (!item || typeof item !== 'object') continue;
+            const d = Number(item.day_of_week ?? item.day ?? 0) % 7;
+            const h = Number(item.hour ?? 0) % 24;
+            if (d >= 0 && d < 7 && h >= 0 && h < 24) {
+              grid[d][h].invocations += Number(item.invocations ?? item.count ?? 0);
+              grid[d][h].total_tokens += Number(item.total_tokens ?? item.tokens ?? 0);
+            }
+          }
+        }
+      }
+
+      return {
+        kpis: {
+          total_tokens: totalTokens,
+          total_input_tokens: inp,
+          total_cache_read_tokens: cache,
+          total_output_tokens: out,
+          avg_cache_hit_ratio: avgHit,
+          cache_saved_tokens: Number(k.cache_saved_tokens ?? cache),
+          root_conversations: rootConvCount,
+          total_conversations: totalConvCount,
+          total_invocations: Number(k.total_invocations ?? 0),
+          total_tool_calls: Number(k.total_tool_calls ?? 0),
+          total_tool_errors: Number(k.total_tool_errors ?? 0),
+          peak_context_tokens: Number(k.peak_context_tokens ?? 0),
+          estimated_cost_usd: Number(k.estimated_cost_usd ?? 0),
+          estimated_cache_saved_usd: Number(k.estimated_cache_saved_usd ?? 0)
+        },
+        daily_trend: Array.isArray(raw.daily_trend) ? raw.daily_trend : [],
+        activity_heatmap: grid,
+        model_breakdown: Array.isArray(raw.model_breakdown) ? raw.model_breakdown : [],
+        tool_breakdown: Array.isArray(raw.tool_breakdown) ? raw.tool_breakdown : [],
+        aggregate_composition: normalizeComposition(raw.aggregate_composition),
+        conversations: convs,
+        settings: raw.settings ? normalizeSettings(raw.settings) : state.settings
+      };
+    }
+
+    function normalizeDetail(raw) {
+      const conv = normalizeConvRow(raw.conversation || raw) || normalizeConvRow({});
+      const comp = normalizeComposition(raw.composition, conv);
+      const cp = raw.context_pressure || {};
+      const warnThreshold = Number(cp.warn_threshold ?? state.settings.context_warn_threshold ?? 120000);
+      const windowLimit = Number(cp.window_limit ?? state.settings.context_window_limit ?? 200000);
+      const peakCtx = Number(cp.peak_context_tokens ?? conv.peak_context_tokens ?? 0);
+      const currCtx = Number(cp.current_context_tokens ?? peakCtx);
+
+      return {
+        conversation: conv,
+        composition: comp,
+        context_pressure: {
+          current_context_tokens: currCtx,
+          peak_context_tokens: Math.max(peakCtx, currCtx),
+          warn_threshold: warnThreshold,
+          window_limit: windowLimit,
+          occupancy_ratio: cp.occupancy_ratio !== undefined
+            ? normRatio(cp.occupancy_ratio)
+            : (windowLimit > 0 ? Math.min(1, Math.max(currCtx, peakCtx) / windowLimit) : 0)
+        },
+        invocations: Array.isArray(raw.invocations) ? raw.invocations : [],
+        behavior_timeline: Array.isArray(raw.behavior_timeline) ? raw.behavior_timeline : [],
+        file_hotspots: Array.isArray(raw.file_hotspots) ? raw.file_hotspots : [],
+        command_hotspots: Array.isArray(raw.command_hotspots) ? raw.command_hotspots : [],
+        fleet: raw.fleet || null
+      };
+    }
+
+    /*************************************************************************
+     * 4. DATA FETCHING & TAB NAVIGATION ACTIONS
+     *************************************************************************/
+    async function refreshAllData(forceSync = false) {
+      try {
+        const overviewRes = forceSync
+          ? await callServerTool('app_sync_all', { force: true })
+          : await callServerTool('app_get_overview', { days: state.days, include_children: false });
+
+        if (overviewRes) {
+          state.hasReceivedInitialData = true;
+          ingestPayload({ overview: overviewRes });
+        }
+
+        const targetConvId = state.selectedConversationId ||
+          (state.overview?.conversations?.[0]?.conversation_id) || undefined;
+
+        const detailRes = await callServerTool('app_get_conversation', {
+          conversation_id: targetConvId
+        });
+        if (detailRes) {
+          ingestPayload({ detail: detailRes });
+        }
+      } catch (err) {
+        console.warn('refreshAllData warning:', err);
+      }
+    }
+
+    async function syncAllNow(force = false) {
+      await refreshAllData(force);
+      showToast('已同步最新 brain/ 会话遥测数据');
+    }
+
+    async function onChangeDays(val) {
+      state.days = Number(val) || 7;
+      try {
+        const overviewRes = await callServerTool('app_get_overview', {
+          days: state.days,
+          include_children: false
+        });
+        if (overviewRes) ingestPayload({ overview: overviewRes });
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    async function selectConversation(convId, targetTab = null) {
+      if (!convId) return;
+      state.selectedConversationId = convId;
+      if (targetTab) {
+        switchTab(targetTab, false);
+      }
+      try {
+        const detailRes = await callServerTool('app_get_conversation', {
+          conversation_id: convId
+        });
+        if (detailRes) {
+          ingestPayload({ detail: detailRes });
+        }
+      } catch (e) {
+        console.warn('selectConversation error:', e);
+      }
+    }
+
+    const TAB_LABELS = {
+      global: '全局洞察',
+      session: '单对话深潜',
+      fleet: '多 Agent 舰队',
+      settings: '设置与导出'
+    };
+
+    function updateBackButton() {
+      const btn = document.getElementById('btn-nav-back');
+      if (!btn) return;
+      if (state.tabHistory.length > 0) {
+        const prev = state.tabHistory[state.tabHistory.length - 1];
+        btn.style.display = 'inline-flex';
+        btn.title = `返回「${TAB_LABELS[prev] || prev}」（也可再次点击当前标签返回）`;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function goBackTab() {
+      if (!state.tabHistory.length) return;
+      const prev = state.tabHistory.pop();
+      state.previousTab = state.tabHistory.length > 0 ? state.tabHistory[state.tabHistory.length - 1] : null;
+      switchTab(prev, true, true);
+    }
+
+    function switchTab(tabId, triggerRender = true, fromBack = false) {
+      if (tabId === state.activeTab && triggerRender && !fromBack && state.previousTab) {
+        goBackTab();
+        return;
+      }
+      if (tabId !== state.activeTab && !fromBack) {
+        state.tabHistory.push(state.activeTab);
+        if (state.tabHistory.length > 10) state.tabHistory.shift();
+        state.previousTab = state.activeTab;
+      }
+      state.activeTab = tabId;
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === `panel-${tabId}`);
+      });
+      updateBackButton();
+      if (triggerRender) {
+        renderAll();
+      }
+      setTimeout(notifySizeChanged, 60);
+    }
+
+    /*************************************************************************
+     * 5. MASTER RENDER ORCHESTRATOR
+     *************************************************************************/
+    function renderAll() {
+      populateSessionDropdowns();
+      renderGlobalTab();
+      renderSessionTab();
+      renderFleetTab();
+      renderSettingsTab();
+      setTimeout(notifySizeChanged, 60);
+    }
+
+    function getAllConversationsFlat() {
+      const list = [];
+      const roots = state.overview?.conversations || [];
+      for (const r of roots) {
+        list.push({ ...r, isChild: false });
+        if (Array.isArray(r.children)) {
+          for (const ch of r.children) {
+            list.push({ ...ch, isChild: true, parentTitle: r.title });
+          }
+        }
+      }
+      if (state.detail?.conversation) {
+        const cur = state.detail.conversation;
+        if (cur.conversation_id && !list.some(x => x.conversation_id === cur.conversation_id)) {
+          list.unshift({ ...cur, isChild: !!cur.parent_conversation_id });
+        }
+      }
+      return list;
+    }
+
+    function cleanSessionTitle(c) {
+      let t = String(c.title || c.conversation_id || '未命名会话 (Untitled Session)').trim();
+      const role = String(c.agent_role || '').trim();
+      if (role) {
+        const escapedRole = role.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`^(?:\\[${escapedRole}\\]\\s*)+`, 'i');
+        t = t.replace(re, '').trim();
+      }
+      return t || c.conversation_id || '未命名会话';
+    }
+
+    function toggleSessionPicker(pickerId, ev) {
+      if (ev) ev.stopPropagation();
+      if (state.openPickerId === pickerId) {
+        state.openPickerId = null;
+      } else {
+        state.openPickerId = pickerId;
+        state.pickerSearch = '';
+      }
+      populateSessionDropdowns();
+      if (state.openPickerId === pickerId) {
+        const inp = document.querySelector(`#${pickerId} .session-picker-search`);
+        if (inp) setTimeout(() => inp.focus(), 10);
+      }
+    }
+
+    function onPickerSearchInput(val) {
+      state.pickerSearch = String(val || '');
+      const pickerId = state.openPickerId;
+      if (!pickerId) return;
+      const listEl = document.querySelector(`#${pickerId} .session-picker-list`);
+      if (listEl) {
+        listEl.innerHTML = renderSessionPickerOptionsHtml();
+      }
+    }
+
+    function pickSessionOption(convId) {
+      state.openPickerId = null;
+      state.pickerSearch = '';
+      populateSessionDropdowns();
+      selectConversation(convId);
+    }
+
+    function togglePickerGroup(rootConvId, ev) {
+      if (ev) ev.stopPropagation();
+      if (state.pickerExpandedParents.has(rootConvId)) {
+        state.pickerExpandedParents.delete(rootConvId);
+      } else {
+        state.pickerExpandedParents.add(rootConvId);
+      }
+      const pickerId = state.openPickerId;
+      if (!pickerId) return;
+      const listEl = document.querySelector(`#${pickerId} .session-picker-list`);
+      if (listEl) {
+        listEl.innerHTML = renderSessionPickerOptionsHtml();
+      }
+    }
+
+    function renderSessionPickerOptionsHtml() {
+      const roots = [...(state.overview?.conversations || [])];
+      if (roots.length === 0 && state.detail?.conversation) {
+        roots.push(state.detail.conversation);
+      }
+      const q = (state.pickerSearch || '').trim().toLowerCase();
+
+      const filteredRoots = roots.filter(r => {
+        if (!q) return true;
+        const matchRoot = cleanSessionTitle(r).toLowerCase().includes(q)
+          || r.conversation_id.toLowerCase().includes(q)
+          || String(r.agent_role || '').toLowerCase().includes(q)
+          || String(r.primary_model || '').toLowerCase().includes(q);
+        const matchChild = Array.isArray(r.children) && r.children.some(ch =>
+          cleanSessionTitle(ch).toLowerCase().includes(q)
+          || ch.conversation_id.toLowerCase().includes(q)
+          || String(ch.agent_role || '').toLowerCase().includes(q)
+          || String(ch.primary_model || '').toLowerCase().includes(q)
+        );
+        return matchRoot || matchChild;
+      });
+
+      if (filteredRoots.length === 0) {
+        return `<div class="empty-state" style="padding:16px 10px;">未找到匹配的会话</div>`;
+      }
+
+      return filteredRoots.map(r => {
+        const isRootSelected = r.conversation_id === state.selectedConversationId;
+        const children = Array.isArray(r.children) ? r.children : [];
+        const hasChildren = children.length > 0;
+        const role = r.agent_role || 'main';
+        const badgeCls = role === 'coordinator' ? 'badge-blue' : 'badge-cyan';
+        const roleLabel = role === 'coordinator' ? '👑 coordinator' : `● ${role}`;
+        const cleanTitle = cleanSessionTitle(r);
+        const shortId = r.conversation_id.slice(0, 8);
+        const displayTok = hasChildren ? fmtCompact(r.fleet_total_tokens) : fmtCompact(r.total_tokens);
+        const hit = fmtPct(r.cache_hit_ratio);
+
+        const matchingChildren = q
+          ? children.filter(ch =>
+              cleanSessionTitle(ch).toLowerCase().includes(q)
+              || ch.conversation_id.toLowerCase().includes(q)
+              || String(ch.agent_role || '').toLowerCase().includes(q)
+              || String(ch.primary_model || '').toLowerCase().includes(q)
+            )
+          : children;
+        const hasSelectedChild = children.some(ch => ch.conversation_id === state.selectedConversationId);
+        const isExpanded = hasChildren && (
+          state.pickerExpandedParents.has(r.conversation_id)
+          || hasSelectedChild
+          || (q !== '' && matchingChildren.length > 0)
+        );
+        const visibleChildren = (q && matchingChildren.length > 0) ? matchingChildren : children;
+
+        let childrenHtml = '';
+        if (isExpanded && visibleChildren.length > 0) {
+          childrenHtml = `
+            <div class="session-picker-children">
+              ${visibleChildren.map(ch => {
+                const isChildSel = ch.conversation_id === state.selectedConversationId;
+                const chRole = ch.agent_role || 'subagent';
+                const chTitle = cleanSessionTitle(ch);
+                const chShort = ch.conversation_id.slice(0, 8);
+                const chTok = fmtCompact(ch.total_tokens);
+                const chHit = fmtPct(ch.cache_hit_ratio);
+                return `
+                  <button type="button" class="session-picker-option ${isChildSel ? 'active' : ''}" onclick="event.stopPropagation(); pickSessionOption('${escHtml(ch.conversation_id)}')">
+                    <div class="session-picker-opt-top">
+                      <div class="session-picker-opt-badges">
+                        <span class="badge badge-purple">↳ @${escHtml(chRole)}</span>
+                        <span class="badge">#${escHtml(chShort)}</span>
+                        ${ch.primary_model ? `<span class="badge">${escHtml(ch.primary_model)}</span>` : ''}
+                      </div>
+                      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;">
+                        <b style="color:var(--text-primary);">${chTok} tok</b> · <span style="color:var(--accent-emerald);">${chHit}</span>
+                      </div>
+                    </div>
+                    <div class="session-picker-opt-title">${escHtml(chTitle)}</div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="session-picker-group">
+            <button type="button" class="session-picker-option ${isRootSelected ? 'active' : ''}" onclick="event.stopPropagation(); pickSessionOption('${escHtml(r.conversation_id)}')">
+              <div class="session-picker-opt-top">
+                <div class="session-picker-opt-badges">
+                  <span class="badge ${badgeCls}">${escHtml(roleLabel)}</span>
+                  <span class="badge">#${escHtml(shortId)}</span>
+                  ${r.primary_model ? `<span class="badge">${escHtml(r.primary_model)}</span>` : ''}
+                  ${hasChildren ? `<span class="session-picker-sub-toggle" onclick="togglePickerGroup('${escHtml(r.conversation_id)}', event)">${isExpanded ? '▾ 收起' : '▸ 含'} ${children.length} 个子代理</span>` : ''}
+                </div>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:nowrap;flex-shrink:0;">
+                  <b style="color:var(--text-primary);">${hasChildren ? '舰队 ' : ''}${displayTok} tok</b> · <span style="color:var(--accent-emerald);">${hit}</span>
+                </div>
+              </div>
+              <div class="session-picker-opt-title">${escHtml(cleanTitle)}</div>
+            </button>
+            ${childrenHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function populateSessionDropdowns() {
+      const allConvs = getAllConversationsFlat();
+      const pickerIds = ['session-picker-session', 'session-picker-fleet'];
+      const activeConv = allConvs.find(c => c.conversation_id === state.selectedConversationId) || allConvs[0] || null;
+
+      for (const pid of pickerIds) {
+        const host = document.getElementById(pid);
+        if (!host) continue;
+        const isOpen = state.openPickerId === pid;
+        host.classList.toggle('open', isOpen);
+
+        if (allConvs.length === 0 || !activeConv) {
+          host.innerHTML = `
+            <button type="button" class="session-picker-trigger" disabled>
+              <span class="session-picker-trigger-main">
+                <span class="session-picker-trigger-title" style="color:var(--text-secondary);">暂无会话记录 (No conversations)</span>
+              </span>
+              <span>▾</span>
+            </button>
+          `;
+          continue;
+        }
+
+        const role = activeConv.agent_role || (activeConv.isChild ? 'worker' : 'main');
+        const badgeCls = activeConv.isChild ? 'badge-purple' : (role === 'coordinator' ? 'badge-blue' : 'badge-cyan');
+        const roleLabel = activeConv.isChild ? `↳ @${role}` : (role === 'coordinator' ? '👑 coordinator' : `● ${role}`);
+        const parentRow = activeConv.isChild
+          ? allConvs.find(x => x.conversation_id === activeConv.parent_conversation_id)
+          : null;
+        const parentTitleStr = activeConv.isChild
+          ? (parentRow ? cleanSessionTitle(parentRow) : (activeConv.parentTitle || state.detail?.conversation?.parent_title || ''))
+          : '';
+        const cleanTitle = cleanSessionTitle(activeConv);
+        const triggerTitle = (activeConv.isChild && parentTitleStr)
+          ? `${parentTitleStr} / ↳ @${role}`
+          : cleanTitle;
+        const shortId = activeConv.conversation_id.slice(0, 8);
+        const childCount = Array.isArray(activeConv.children) ? activeConv.children.length : 0;
+        const tokLabel = childCount > 0
+          ? `舰队 ${fmtCompact(activeConv.fleet_total_tokens)} tok (+${childCount} 子代理)`
+          : `${fmtCompact(activeConv.total_tokens)} tok`;
+
+        host.innerHTML = `
+          <button type="button" class="session-picker-trigger" onclick="toggleSessionPicker('${pid}', event)">
+            <span class="session-picker-trigger-main">
+              <span class="badge ${badgeCls}" style="flex-shrink:0;">${escHtml(roleLabel)}</span>
+              <span class="session-picker-trigger-title" title="${escHtml(triggerTitle)}">${escHtml(triggerTitle)}</span>
+              <span class="badge" style="flex-shrink:0;">#${escHtml(shortId)} · ${escHtml(tokLabel)}</span>
+            </span>
+            <span style="flex-shrink:0;opacity:0.75;">${isOpen ? '▴' : '▾'}</span>
+          </button>
+          <div class="session-picker-menu" onclick="event.stopPropagation()">
+            <div class="session-picker-search-wrap">
+              <input type="text" class="input-control session-picker-search" placeholder="搜索主会话或子代理标题 / ID / Role / 模型..." value="${escHtml(state.pickerSearch)}" oninput="onPickerSearchInput(this.value)" />
+            </div>
+            <div class="session-picker-list">
+              ${isOpen ? renderSessionPickerOptionsHtml() : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener('click', (ev) => {
+      if (!state.openPickerId) return;
+      const target = ev.target;
+      if (target && typeof target.closest === 'function' && target.closest('.session-picker')) {
+        return;
+      }
+      state.openPickerId = null;
+      state.pickerSearch = '';
+      populateSessionDropdowns();
+    });
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && state.openPickerId) {
+        state.openPickerId = null;
+        state.pickerSearch = '';
+        populateSessionDropdowns();
+      }
+    });
+
+    /*************************************************************************
+     * 6. TAB 1: GLOBAL INSIGHTS RENDERERS
+     *************************************************************************/
+    function renderGlobalTab() {
+      const ov = state.overview;
+      if (!ov) return;
+      renderGlobalKpis(ov);
+      renderGlobalTrendChart(ov.daily_trend);
+      renderGlobalHeatmap(ov.activity_heatmap);
+      renderGlobalComposition(ov.aggregate_composition);
+      renderGlobalModelBreakdown(ov.model_breakdown);
+      renderGlobalToolBreakdown(ov.tool_breakdown);
+      renderConversationList();
+    }
+
+    function renderGlobalKpis(ov) {
+      const k = ov.kpis;
+      const showCost = state.settings.show_cost_estimates;
+      const errRate = k.total_tool_calls > 0
+        ? ((k.total_tool_errors / k.total_tool_calls) * 100).toFixed(1) + '%'
+        : '0.0%';
+
+      const totalTok = Math.max(1, k.total_tokens);
+      const cachePctW = ((k.total_cache_read_tokens / totalTok) * 100).toFixed(1);
+      const inputPctW = ((k.total_input_tokens / totalTok) * 100).toFixed(1);
+      const outPctW = ((k.total_output_tokens / totalTok) * 100).toFixed(1);
+
+      const subagentCount = Math.max(0, k.total_conversations - k.root_conversations);
+      const warnThreshold = state.settings.context_warn_threshold || 120000;
+      const windowLimit = state.settings.context_window_limit || 200000;
+      const peakColor = k.peak_context_tokens >= warnThreshold ? 'var(--accent-amber)' : 'var(--accent-cyan)';
+
+      let cardsHtml = `
+        <!-- 1. Total Tokens -->
+        <div class="kpi-card" style="--kpi-accent: var(--accent-primary);">
+          <div class="kpi-label">
+            <span>总计消耗 Token (Total Tokens)</span>
+            <span class="badge badge-blue">${fmtNum(k.total_invocations)} 轮推理</span>
+          </div>
+          <div class="kpi-value">${fmtCompact(k.total_tokens)}</div>
+          <div class="token-bar-stack" title="Cache Read: ${fmtNum(k.total_cache_read_tokens)} | Input: ${fmtNum(k.total_input_tokens)} | Output: ${fmtNum(k.total_output_tokens)}">
+            <div class="token-bar-seg" style="width:${cachePctW}%;background:var(--tok-cache)"></div>
+            <div class="token-bar-seg" style="width:${inputPctW}%;background:var(--tok-input)"></div>
+            <div class="token-bar-seg" style="width:${outPctW}%;background:var(--tok-output)"></div>
+          </div>
+          <div class="kpi-meta">
+            <span>缓存 <b>${fmtCompact(k.total_cache_read_tokens)}</b></span> ·
+            <span>新输入 <b>${fmtCompact(k.total_input_tokens)}</b></span> ·
+            <span>输出 <b>${fmtCompact(k.total_output_tokens)}</b></span>
+          </div>
+        </div>
+
+        <!-- 2. Prompt Cache Hit Rate -->
+        <div class="kpi-card" style="--kpi-accent: var(--accent-emerald);">
+          <div class="kpi-label">
+            <span>平均前缀缓存命中率 (Cache Hit)</span>
+            <span class="badge badge-emerald">Prefix Cache</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div class="kpi-value" style="color:var(--accent-emerald);">${fmtPct(k.avg_cache_hit_ratio)}</div>
+            ${renderMiniRingSvg(normRatio(k.avg_cache_hit_ratio), '#10b981', 38)}
+          </div>
+          <div class="kpi-meta">
+            <span>累计复用节省 <b>${fmtCompact(k.cache_saved_tokens)}</b> tokens</span>
+          </div>
+        </div>
+
+        <!-- 3. Recorded Conversations & Swarm Subagents -->
+        <div class="kpi-card" style="--kpi-accent: var(--accent-purple);">
+          <div class="kpi-label">
+            <span>收录会话与子智能体 (Sessions)</span>
+            <span class="badge badge-purple">Swarm Fleet</span>
+          </div>
+          <div class="kpi-value">${fmtNum(k.total_conversations)}</div>
+          <div class="kpi-meta">
+            <span>主会话 (Root): <b>${fmtNum(k.root_conversations)}</b></span> ·
+            <span>Swarm/子代理: <b>${fmtNum(subagentCount)}</b></span>
+          </div>
+        </div>
+
+        <!-- 4. AI Tool Calls & Error Rate -->
+        <div class="kpi-card" style="--kpi-accent: var(--accent-amber);">
+          <div class="kpi-label">
+            <span>AI 工具调用与异常率 (Tool Calls)</span>
+            <span class="badge ${k.total_tool_errors > 0 ? 'badge-rose' : 'badge-emerald'}">异常率 ${errRate}</span>
+          </div>
+          <div class="kpi-value">${fmtNum(k.total_tool_calls)}</div>
+          <div class="kpi-meta">
+            <span>成功 <b>${fmtNum(Math.max(0, k.total_tool_calls - k.total_tool_errors))}</b> 次</span> ·
+            <span>失败/报错 <b>${fmtNum(k.total_tool_errors)}</b> 次</span>
+          </div>
+        </div>
+
+        <!-- 5. Peak Context Pressure -->
+        <div class="kpi-card" style="--kpi-accent: ${peakColor};">
+          <div class="kpi-label">
+            <span>峰值上下文水位 (Peak Context)</span>
+            <span class="badge ${k.peak_context_tokens >= warnThreshold ? 'badge-amber' : 'badge-cyan'}">${fmtPct(k.peak_context_tokens / windowLimit)} 窗口</span>
+          </div>
+          <div class="kpi-value">${fmtCompact(k.peak_context_tokens)}</div>
+          <div class="kpi-meta">
+            <span>预警线: <b>${fmtCompact(warnThreshold)}</b></span> ·
+            <span>容量上限: <b>${fmtCompact(windowLimit)}</b></span>
+          </div>
+        </div>
+      `;
+
+      if (showCost) {
+        cardsHtml += `
+          <!-- 6. Equivalent API Cost & Cache Savings -->
+          <div class="kpi-card" style="--kpi-accent: #10b981;">
+            <div class="kpi-label">
+              <span>等价 API 成本与缓存节省 (Est. Cost)</span>
+              <span class="badge badge-emerald">省 ${fmtUsd(k.estimated_cache_saved_usd)}</span>
+            </div>
+            <div class="kpi-value">${fmtUsd(k.estimated_cost_usd)}</div>
+            <div class="kpi-meta">
+              <span>若无前缀缓存预计花费 <b>${fmtUsd(k.estimated_cost_usd + k.estimated_cache_saved_usd)}</b></span>
+            </div>
+          </div>
+        `;
+      }
+
+      const grid = document.getElementById('global-kpi-grid');
+      if (grid) grid.innerHTML = cardsHtml;
+    }
+
+    function renderMiniRingSvg(ratio, color, size = 38) {
+      const r = (size - 6) / 2;
+      const c = 2 * Math.PI * r;
+      const dash = Math.max(0, Math.min(1, ratio)) * c;
+      return `
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="4.5" />
+          <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="4.5"
+            stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"
+            stroke-linecap="round"
+            transform="rotate(-90 ${size/2} ${size/2})" />
+        </svg>
+      `;
+    }
+
+    function renderGlobalTrendChart(trend) {
+      const container = document.getElementById('global-trend-chart');
+      if (!container) return;
+      if (!Array.isArray(trend) || trend.length === 0) {
+        container.innerHTML = `<div class="empty-state">暂无最近 ${state.days} 天的逐日趋势数据</div>`;
+        return;
+      }
+
+      const W = 560, H = 190, padL = 46, padR = 16, padT = 16, padB = 28;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      const maxTok = Math.max(1000, ...trend.map(d =>
+        Number(d.total_tokens ?? ((Number(d.input_tokens)||0) + (Number(d.cache_read_tokens)||0) + (Number(d.output_tokens)||0)))
+      ));
+
+      const stepX = plotW / Math.max(1, trend.length);
+      const barW = Math.min(34, Math.max(8, stepX * 0.56));
+
+      let gridLines = '';
+      for (let i = 0; i <= 3; i++) {
+        const y = padT + (plotH * i) / 3;
+        const val = maxTok * (1 - i / 3);
+        gridLines += `
+          <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--border-primary)" stroke-dasharray="3 3" stroke-width="1" />
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--text-tertiary)" font-family="var(--font-mono)">${fmtCompact(val)}</text>
+        `;
+      }
+
+      let bars = '';
+      trend.forEach((d, idx) => {
+        const inp = Number(d.input_tokens) || 0;
+        const cache = Number(d.cache_read_tokens) || 0;
+        const out = Number(d.output_tokens) || 0;
+        const tot = inp + cache + out;
+
+        const cx = padL + idx * stepX + stepX / 2;
+        const x = cx - barW / 2;
+
+        const hCache = (cache / maxTok) * plotH;
+        const hInp = (inp / maxTok) * plotH;
+        const hOut = (out / maxTok) * plotH;
+
+        const yCache = padT + plotH - hCache;
+        const yInp = yCache - hInp;
+        const yOut = yInp - hOut;
+
+        const dateLabel = String(d.date || '').slice(5);
+        const hitPct = (inp + cache) > 0 ? ((cache / (inp + cache)) * 100).toFixed(1) + '%' : '0%';
+
+        bars += `
+          <g>
+            <title>${escHtml(d.date)}\n总计: ${fmtNum(tot)} tokens\nCache Read: ${fmtNum(cache)} (${hitPct})\nFresh Input: ${fmtNum(inp)}\nOutput: ${fmtNum(out)}</title>
+            <rect x="${x}" y="${yCache}" width="${barW}" height="${Math.max(0, hCache)}" fill="var(--tok-cache)" rx="1.5" />
+            <rect x="${x}" y="${yInp}" width="${barW}" height="${Math.max(0, hInp)}" fill="var(--tok-input)" rx="1.5" />
+            <rect x="${x}" y="${yOut}" width="${barW}" height="${Math.max(0, hOut)}" fill="var(--tok-output)" rx="1.5" />
+            <text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--text-secondary)" font-family="var(--font-mono)">${escHtml(dateLabel)}</text>
+          </g>
+        `;
+      });
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}">
+          ${gridLines}
+          ${bars}
+        </svg>
+      `;
+    }
+
+    function renderGlobalHeatmap(grid) {
+      const container = document.getElementById('global-heatmap-container');
+      if (!container || !Array.isArray(grid)) return;
+
+      const dayNames = ['Sun 日', 'Mon 一', 'Tue 二', 'Wed 三', 'Thu 四', 'Fri 五', 'Sat 六'];
+      let maxVal = 1;
+      let totalAct = 0;
+
+      for (let d = 0; d < 7; d++) {
+        for (let h = 0; h < 24; h++) {
+          const cell = grid[d]?.[h] || { invocations: 0, total_tokens: 0 };
+          const score = cell.total_tokens || cell.invocations || 0;
+          if (score > maxVal) maxVal = score;
+          totalAct += cell.invocations || 0;
+        }
+      }
+
+      const badge = document.getElementById('heatmap-summary-badge');
+      if (badge) badge.textContent = `累计 ${fmtNum(totalAct)} 次模型活跃分布`;
+
+      let html = `<div class="heatmap-grid">`;
+      // Header row: empty corner + 24 hours
+      html += `<div></div>`;
+      for (let h = 0; h < 24; h++) {
+        html += `<div class="heatmap-hour-label">${String(h).padStart(2, '0')}</div>`;
+      }
+
+      for (let d = 0; d < 7; d++) {
+        html += `<div class="heatmap-day-label">${dayNames[d]}</div>`;
+        for (let h = 0; h < 24; h++) {
+          const cell = grid[d]?.[h] || { invocations: 0, total_tokens: 0 };
+          const score = cell.total_tokens || cell.invocations || 0;
+          let bg = 'var(--bg-tertiary)';
+          if (score > 0) {
+            const alpha = Math.max(0.18, Math.min(0.95, Math.pow(score / maxVal, 0.45)));
+            bg = `rgba(16, 185, 129, ${alpha.toFixed(2)})`;
+          }
+          const tip = `${dayNames[d]} ${String(h).padStart(2, '0')}:00\n推理轮次: ${fmtNum(cell.invocations)}\nToken 吞吐: ${fmtNum(cell.total_tokens)}`;
+          html += `<div class="heatmap-cell" style="background:${bg}" title="${escHtml(tip)}"></div>`;
+        }
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function renderCompositionDonutHtml(comp) {
+      const cats = [
+        { key: 'system_tokens', label: '系统与工具基线 (System & Tools)', color: 'var(--cat-system)', val: comp.system_tokens },
+        { key: 'user_tokens', label: '用户输入指令 (User Input)', color: 'var(--cat-user)', val: comp.user_tokens },
+        { key: 'tool_tokens', label: '工具返回结果 (Tool Outputs)', color: 'var(--cat-tool)', val: comp.tool_tokens },
+        { key: 'output_tokens', label: '模型回复正文 (Model Replies)', color: 'var(--cat-output)', val: comp.output_tokens },
+        { key: 'thinking_tokens', label: '深度推理思维链 (Thinking)', color: 'var(--cat-thinking)', val: comp.thinking_tokens }
+      ];
+
+      const total = Math.max(1, cats.reduce((s, c) => s + c.val, 0));
+      const size = 122, r = 46, cx = size / 2, cy = size / 2;
+      const circum = 2 * Math.PI * r;
+      let offset = 0;
+      let arcs = '';
+
+      for (const cat of cats) {
+        if (cat.val <= 0) continue;
+        const frac = cat.val / total;
+        const len = frac * circum;
+        arcs += `
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${cat.color}" stroke-width="14"
+            stroke-dasharray="${len.toFixed(2)} ${(circum - len).toFixed(2)}"
+            stroke-dashoffset="${(-offset).toFixed(2)}"
+            transform="rotate(-90 ${cx} ${cy})">
+            <title>${escHtml(cat.label)}: ${fmtNum(cat.val)} (${(frac * 100).toFixed(1)}%)</title>
+          </circle>
+        `;
+        offset += len;
+      }
+
+      if (!arcs) {
+        arcs = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="14" />`;
+      }
+
+      const legendHtml = cats.map(c => {
+        const pct = comp.total > 0 ? ((c.val / comp.total) * 100).toFixed(1) + '%' : '0.0%';
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;gap:6px;">
+            <span style="display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <span class="legend-dot" style="background:${c.color};flex-shrink:0;"></span>
+              <span>${escHtml(c.label)}</span>
+            </span>
+            <span style="font-family:var(--font-mono);font-weight:600;">${fmtCompact(c.val)} <span style="color:var(--text-tertiary);">(${pct})</span></span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="gauge-box">
+          <div class="gauge-svg-wrap" style="width:${size}px;height:${size}px;">
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}</svg>
+            <div class="gauge-center-text">
+              <div class="gauge-pct" style="font-size:14px;">${fmtCompact(comp.total)}</div>
+              <div class="gauge-sub">五维归因</div>
+            </div>
+          </div>
+          <div class="gauge-details">${legendHtml}</div>
+        </div>
+      `;
+    }
+
+    function renderGlobalComposition(comp) {
+      const el = document.getElementById('global-composition-ring');
+      if (el) el.innerHTML = renderCompositionDonutHtml(comp);
+    }
+
+    function renderGlobalModelBreakdown(models) {
+      const el = document.getElementById('global-model-breakdown');
+      if (!el) return;
+      if (!Array.isArray(models) || models.length === 0) {
+        el.innerHTML = `<div class="empty-state">暂无模型统计数据</div>`;
+        return;
+      }
+      const maxTok = Math.max(1, ...models.map(m => Number(m.total_tokens) || 0));
+      el.innerHTML = models.slice(0, 6).map(m => {
+        const tot = Number(m.total_tokens) || 0;
+        const pctW = ((tot / maxTok) * 100).toFixed(1);
+        const hit = fmtPct(m.cache_hit_ratio);
+        return `
+          <div class="h-bar-item">
+            <div class="h-bar-head">
+              <span style="font-weight:600;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.model || 'unknown')}</span>
+              <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary);">
+                <b>${fmtCompact(tot)}</b> · 命中 <span style="color:var(--accent-emerald);">${hit}</span> · ${fmtNum(m.invocations)} 轮
+              </span>
+            </div>
+            <div class="h-bar-track">
+              <div class="h-bar-fill" style="width:${pctW}%;background:linear-gradient(90deg, var(--accent-primary), var(--accent-emerald));"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderGlobalToolBreakdown(tools) {
+      const el = document.getElementById('global-tool-breakdown');
+      if (!el) return;
+      if (!Array.isArray(tools) || tools.length === 0) {
+        el.innerHTML = `<div class="empty-state">暂无 AI 工具调用统计</div>`;
+        return;
+      }
+      const maxCalls = Math.max(1, ...tools.map(t => Number(t.call_count) || 0));
+      el.innerHTML = tools.slice(0, 7).map(t => {
+        const calls = Number(t.call_count) || 0;
+        const errs = Number(t.error_count) || 0;
+        const avgMs = Math.round(Number(t.avg_duration_ms) || 0);
+        const pctW = ((calls / maxCalls) * 100).toFixed(1);
+        return `
+          <div class="h-bar-item">
+            <div class="h-bar-head">
+              <span style="font-family:var(--font-mono);font-weight:600;">
+                ${escHtml(t.tool_name || 'tool')}
+                ${errs > 0 ? `<span class="badge badge-rose" style="margin-left:4px;">${errs} err</span>` : ''}
+              </span>
+              <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary);">
+                <b>${fmtNum(calls)}</b> 次 · 均耗 ${fmtNum(avgMs)}ms
+              </span>
+            </div>
+            <div class="h-bar-track">
+              <div class="h-bar-fill" style="width:${pctW}%;background:var(--accent-amber);"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleExpandRoot(convId) {
+      if (state.expandedRoots.has(convId)) {
+        state.expandedRoots.delete(convId);
+      } else {
+        state.expandedRoots.add(convId);
+      }
+      renderConversationList();
+    }
+
+    function renderConversationList() {
+      const container = document.getElementById('global-conv-list');
+      if (!container) return;
+      const convs = (state.overview && state.overview.conversations) ? [...state.overview.conversations] : [];
+      if (convs.length === 0) {
+        container.innerHTML = `<div class="empty-state">尚未扫描到会话记录，请点击右上角「同步刷新」按钮。</div>`;
+        return;
+      }
+
+      const q = (document.getElementById('conv-search-input')?.value || '').trim().toLowerCase();
+      const sortBy = document.getElementById('conv-sort-select')?.value || 'recent';
+
+      const filtered = convs.filter(c => {
+        if (!q) return true;
+        const matchSelf = c.title.toLowerCase().includes(q) ||
+          c.conversation_id.toLowerCase().includes(q) ||
+          c.primary_model.toLowerCase().includes(q) ||
+          c.agent_role.toLowerCase().includes(q) ||
+          c.workspace_path.toLowerCase().includes(q);
+        const matchChild = Array.isArray(c.children) && c.children.some(ch =>
+          ch.title.toLowerCase().includes(q) ||
+          ch.conversation_id.toLowerCase().includes(q) ||
+          ch.agent_role.toLowerCase().includes(q)
+        );
+        return matchSelf || matchChild;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'fleet_tokens') return b.fleet_total_tokens - a.fleet_total_tokens;
+        if (sortBy === 'own_tokens') return b.total_tokens - a.total_tokens;
+        if (sortBy === 'cache_hit') return b.cache_hit_ratio - a.cache_hit_ratio;
+        if (sortBy === 'tools') return b.fleet_tool_calls - a.fleet_tool_calls;
+        return String(b.updated_at).localeCompare(String(a.updated_at));
+      });
+
+      const showCost = state.settings.show_cost_estimates;
+
+      container.innerHTML = filtered.map(c => {
+        const hasChildren = Array.isArray(c.children) && c.children.length > 0;
+        const isExpanded = state.expandedRoots.has(c.conversation_id);
+        const shortId = c.conversation_id.slice(0, 8);
+        const tot = Math.max(1, c.total_tokens);
+        const cacheW = ((c.total_cache_read_tokens / tot) * 100).toFixed(1);
+        const inpW = ((c.total_input_tokens / tot) * 100).toFixed(1);
+        const outW = ((c.total_output_tokens / tot) * 100).toFixed(1);
+
+        let childrenHtml = '';
+        if (hasChildren) {
+          childrenHtml = `
+            <div class="conv-children-drawer ${isExpanded ? 'open' : ''}">
+              <div style="font-size:11.5px;font-weight:700;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;">
+                <span>🛸 下属 Swarm Workers / Subagents (${c.children.length} 个子会话)</span>
+                <button class="btn btn-sm" onclick="selectConversation('${escHtml(c.conversation_id)}', 'fleet')">在「多 Agent 舰队」视图查看拓扑 →</button>
+              </div>
+              ${c.children.map(ch => `
+                <div class="child-conv-row">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1;">
+                    <span class="badge badge-purple">@${escHtml(ch.agent_role || 'worker')}</span>
+                    <span class="badge">${escHtml(ch.conversation_id.slice(0, 8))}</span>
+                    <span class="conv-title" style="font-size:12.5px;" onclick="selectConversation('${escHtml(ch.conversation_id)}', 'session')">${escHtml(ch.title.slice(0, 64))}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;font-family:var(--font-mono);font-size:11.5px;">
+                    <span>Token: <b>${fmtCompact(ch.total_tokens)}</b></span>
+                    <span style="color:var(--accent-emerald);">缓存: ${fmtPct(ch.cache_hit_ratio)}</span>
+                    <span>工具: ${fmtNum(ch.total_tool_calls)}</span>
+                    <button class="btn btn-sm" onclick="selectConversation('${escHtml(ch.conversation_id)}', 'session')">🔬 单步深潜</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="conv-card">
+            <div class="conv-card-main">
+              <div class="conv-info">
+                <div class="conv-title-row">
+                  <span class="badge badge-blue">${escHtml(c.agent_role || 'main')}</span>
+                  <span class="badge" title="${escHtml(c.conversation_id)}">#${escHtml(shortId)}</span>
+                  <span class="conv-title" onclick="selectConversation('${escHtml(c.conversation_id)}', 'session')">${escHtml(c.title)}</span>
+                  ${hasChildren ? `<span class="badge badge-purple">🛸 舰队 +${c.children.length} Workers</span>` : ''}
+                </div>
+                <div class="legend-row" style="font-size:11px;">
+                  <span>🧠 模型: <b>${escHtml(c.primary_model)}</b></span>
+                  <span>🕒 更新: ${fmtTime(c.updated_at)}</span>
+                  ${c.workspace_path ? `<span>📁 ${escHtml(c.workspace_path.split(/[\\/]/).pop() || c.workspace_path)}</span>` : ''}
+                </div>
+              </div>
+
+              <div class="conv-metrics">
+                <div class="conv-stat">
+                  <span class="conv-stat-label">单会话 Token</span>
+                  <span class="conv-stat-val">${fmtCompact(c.total_tokens)}</span>
+                </div>
+                ${hasChildren ? `
+                  <div class="conv-stat">
+                    <span class="conv-stat-label">🛸 舰队总 Token</span>
+                    <span class="conv-stat-val" style="color:var(--accent-purple);">${fmtCompact(c.fleet_total_tokens)}</span>
+                  </div>
+                ` : ''}
+                <div class="conv-stat">
+                  <span class="conv-stat-label">缓存命中率</span>
+                  <span class="conv-stat-val" style="color:var(--accent-emerald);">${fmtPct(c.cache_hit_ratio)}</span>
+                </div>
+                <div class="conv-stat">
+                  <span class="conv-stat-label">峰值水位</span>
+                  <span class="conv-stat-val">${fmtCompact(c.peak_context_tokens)}</span>
+                </div>
+                <div class="conv-stat">
+                  <span class="conv-stat-label">工具调用</span>
+                  <span class="conv-stat-val">${fmtNum(c.fleet_tool_calls)}</span>
+                </div>
+                ${showCost ? `
+                  <div class="conv-stat">
+                    <span class="conv-stat-label">估算成本</span>
+                    <span class="conv-stat-val">${fmtUsd(c.estimated_cost_usd)}</span>
+                  </div>
+                ` : ''}
+                <div style="display:flex;align-items:center;gap:6px;">
+                  ${hasChildren ? `
+                    <button class="btn btn-sm" onclick="toggleExpandRoot('${escHtml(c.conversation_id)}')">
+                      ${isExpanded ? '▲ 收起成员' : `▼ 展开舰队 (${c.children.length})`}
+                    </button>
+                  ` : ''}
+                  <button class="btn btn-sm btn-primary" onclick="selectConversation('${escHtml(c.conversation_id)}', 'session')">🔬 深潜分析</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="token-bar-stack">
+              <div class="token-bar-seg" style="width:${cacheW}%;background:var(--tok-cache)"></div>
+              <div class="token-bar-seg" style="width:${inpW}%;background:var(--tok-input)"></div>
+              <div class="token-bar-seg" style="width:${outW}%;background:var(--tok-output)"></div>
+            </div>
+            ${childrenHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    /*************************************************************************
+     * 7. TAB 2: SESSION DEEP-DIVE RENDERERS
+     *************************************************************************/
+    function renderSessionTab() {
+      const det = state.detail;
+      if (!det || !det.conversation) return;
+      const c = det.conversation;
+
+      // Header badges & meta bar
+      const badgesEl = document.getElementById('session-header-badges');
+      if (badgesEl) {
+        badgesEl.innerHTML = `
+          <span class="badge badge-blue">Role: ${escHtml(c.agent_role || 'main')}</span>
+          <span class="badge">${escHtml(c.primary_model)}</span>
+          ${c.parent_conversation_id ? `<span class="badge badge-purple" style="cursor:pointer;" onclick="selectConversation('${escHtml(c.parent_conversation_id)}', 'session')">↑ 父会话 #${escHtml(c.parent_conversation_id.slice(0, 8))}</span>` : ''}
+        `;
+      }
+
+      const metaEl = document.getElementById('session-meta-bar');
+      if (metaEl) {
+        metaEl.innerHTML = `
+          <span>🆔 <code>${escHtml(c.conversation_id)}</code></span>
+          <span>📁 工作区: <code>${escHtml(c.workspace_path || 'N/A')}</code></span>
+          <span>🕒 创建: ${fmtTime(c.created_at)}</span>
+          <span>🔄 更新: ${fmtTime(c.updated_at)}</span>
+          <span>💬 用户轮次: <b>${fmtNum(c.user_turns)}</b></span>
+          <span>🧠 推理轮次: <b>${fmtNum(c.total_invocations)}</b></span>
+          <span>🛠️ 工具调用: <b>${fmtNum(c.total_tool_calls)}</b> (${fmtNum(c.total_tool_errors)} errors)</span>
+        `;
+      }
+
+      const subBar = document.getElementById('session-subagents-bar');
+      if (subBar) {
+        const fleetNodes = extractFleetNodes();
+        if (fleetNodes.length > 1) {
+          subBar.style.display = 'flex';
+          subBar.innerHTML = `
+            <span style="font-size:11.5px;font-weight:700;color:var(--text-secondary);">🧩 本主会话包含 ${fleetNodes.length - 1} 个子代理 (点击切换):</span>
+            ${fleetNodes.map((n, idx) => {
+              const isRoot = !n.parent_conversation_id || idx === 0;
+              const isCur = n.conversation_id === c.conversation_id;
+              const label = isRoot
+                ? `👑 主会话 · ${cleanSessionTitle(n).slice(0, 26)}`
+                : `↳ @${n.agent_role || 'subagent'} · #${n.conversation_id.slice(0, 6)}`;
+              return `
+                <button type="button" class="subagent-chip ${isCur ? 'active' : ''}" onclick="selectConversation('${escHtml(n.conversation_id)}', 'session')" title="${escHtml(cleanSessionTitle(n))}">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(label)}</span>
+                  <span style="font-family:var(--font-mono);font-size:10.5px;opacity:0.85;">${fmtCompact(n.total_tokens)}</span>
+                </button>
+              `;
+            }).join('')}
+          `;
+        } else {
+          subBar.style.display = 'none';
+          subBar.innerHTML = '';
+        }
+      }
+
+      renderSessionGauges(det);
+      renderSessionTurnChart(det.invocations, det.context_pressure.warn_threshold);
+      renderSessionHotspots(det.file_hotspots, det.command_hotspots);
+      renderSessionTimeline();
+    }
+
+    function renderSessionGauges(det) {
+      const c = det.conversation;
+      const cp = det.context_pressure;
+
+      // 1. Context Pressure Gauge Ring
+      const warn = cp.warn_threshold || 120000;
+      const limit = cp.window_limit || 200000;
+      const peak = Math.max(cp.peak_context_tokens, cp.current_context_tokens);
+      const ratio = limit > 0 ? Math.min(1, peak / limit) : 0;
+
+      let ringColor = '#10b981';
+      let statusLabel = '健康 (Healthy)';
+      let badgeCls = 'badge-emerald';
+      if (peak >= limit * 0.9) {
+        ringColor = '#f43f5e';
+        statusLabel = '临界饱和 (Critical - 建议 /compact)';
+        badgeCls = 'badge-rose';
+      } else if (peak >= warn) {
+        ringColor = '#f59e0b';
+        statusLabel = '超过预警线 (Warn - 建议 /compact)';
+        badgeCls = 'badge-amber';
+      }
+
+      const pBadge = document.getElementById('session-pressure-badge');
+      if (pBadge) {
+        pBadge.className = `badge ${badgeCls}`;
+        pBadge.textContent = statusLabel;
+      }
+
+      const pEl = document.getElementById('session-pressure-gauge');
+      if (pEl) {
+        const size = 116, r = 45, circum = 2 * Math.PI * r;
+        const dash = ratio * circum;
+        pEl.innerHTML = `
+          <div class="gauge-box">
+            <div class="gauge-svg-wrap">
+              <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="11" />
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${ringColor}" stroke-width="11"
+                  stroke-dasharray="${dash.toFixed(1)} ${circum.toFixed(1)}"
+                  stroke-linecap="round"
+                  transform="rotate(-90 ${size/2} ${size/2})" />
+              </svg>
+              <div class="gauge-center-text">
+                <div class="gauge-pct" style="color:${ringColor};">${fmtPct(ratio)}</div>
+                <div class="gauge-sub">窗口占用</div>
+              </div>
+            </div>
+            <div class="gauge-details">
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">当前上下文水位:</span>
+                <b style="font-family:var(--font-mono);">${fmtNum(cp.current_context_tokens)}</b>
+              </div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">会话峰值水位:</span>
+                <b style="font-family:var(--font-mono);color:${ringColor};">${fmtNum(cp.peak_context_tokens)}</b>
+              </div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">预警线 / 窗口上限:</span>
+                <span style="font-family:var(--font-mono);">${fmtCompact(warn)} / ${fmtCompact(limit)}</span>
+              </div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">Turn 0 系统基线:</span>
+                <span style="font-family:var(--font-mono);">${fmtCompact(c.baseline_system_tokens)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 2. Session Cache Hit Gauge Ring
+      const hitRatio = c.cache_hit_ratio;
+      const cBadge = document.getElementById('session-cache-badge');
+      if (cBadge) {
+        cBadge.textContent = `节省 ${fmtCompact(c.total_cache_read_tokens)} tok`;
+      }
+
+      const cEl = document.getElementById('session-cache-gauge');
+      if (cEl) {
+        const size = 116, r = 45, circum = 2 * Math.PI * r;
+        const dash = hitRatio * circum;
+        cEl.innerHTML = `
+          <div class="gauge-box">
+            <div class="gauge-svg-wrap">
+              <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="11" />
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--accent-emerald)" stroke-width="11"
+                  stroke-dasharray="${dash.toFixed(1)} ${circum.toFixed(1)}"
+                  stroke-linecap="round"
+                  transform="rotate(-90 ${size/2} ${size/2})" />
+              </svg>
+              <div class="gauge-center-text">
+                <div class="gauge-pct" style="color:var(--accent-emerald);">${fmtPct(hitRatio)}</div>
+                <div class="gauge-sub">命中率</div>
+              </div>
+            </div>
+            <div class="gauge-details">
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">缓存命中 (Cache Read):</span>
+                <b style="font-family:var(--font-mono);color:var(--tok-cache);">${fmtNum(c.total_cache_read_tokens)}</b>
+              </div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">新增输入 (Fresh Input):</span>
+                <b style="font-family:var(--font-mono);color:var(--tok-input);">${fmtNum(c.total_input_tokens)}</b>
+              </div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;">
+                <span style="color:var(--text-secondary);">模型输出 (Output):</span>
+                <b style="font-family:var(--font-mono);color:var(--tok-output);">${fmtNum(c.total_output_tokens)}</b>
+              </div>
+              ${state.settings.show_cost_estimates ? `
+                <div style="font-size:12px;display:flex;justify-content:space-between;">
+                  <span style="color:var(--text-secondary);">估算成本 / 缓存省下:</span>
+                  <span style="font-family:var(--font-mono);"><b>${fmtUsd(c.estimated_cost_usd)}</b> / <span style="color:var(--accent-emerald);">省 ${fmtUsd(c.estimated_cache_saved_usd)}</span></span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. 5-Category Composition Ring
+      const compEl = document.getElementById('session-composition-gauge');
+      if (compEl) {
+        compEl.innerHTML = renderCompositionDonutHtml(det.composition);
+      }
+    }
+
+    function renderSessionTurnChart(invocations, warnThreshold) {
+      const container = document.getElementById('session-turn-chart');
+      if (!container) return;
+      if (!Array.isArray(invocations) || invocations.length === 0) {
+        container.innerHTML = `<div class="empty-state">当前会话暂无 PLANNER_RESPONSE 推理轮次记录</div>`;
+        return;
+      }
+
+      const W = 860, H = 210, padL = 52, padR = 20, padT = 20, padB = 30;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      const maxTok = Math.max(
+        10000,
+        warnThreshold || 120000,
+        ...invocations.map(inv => (Number(inv.input_tokens)||0) + (Number(inv.cache_read_tokens)||0) + (Number(inv.output_tokens)||0))
+      );
+
+      const stepX = plotW / Math.max(1, invocations.length);
+      const barW = Math.min(28, Math.max(5, stepX * 0.62));
+
+      let gridLines = '';
+      for (let i = 0; i <= 3; i++) {
+        const y = padT + (plotH * i) / 3;
+        const val = maxTok * (1 - i / 3);
+        gridLines += `
+          <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--border-primary)" stroke-dasharray="3 3" stroke-width="1" />
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--text-tertiary)" font-family="var(--font-mono)">${fmtCompact(val)}</text>
+        `;
+      }
+
+      // Warning threshold horizontal line
+      if (warnThreshold && warnThreshold <= maxTok) {
+        const yWarn = padT + plotH - (warnThreshold / maxTok) * plotH;
+        gridLines += `
+          <line x1="${padL}" y1="${yWarn}" x2="${W - padR}" y2="${yWarn}" stroke="var(--accent-amber)" stroke-dasharray="5 3" stroke-width="1.3" />
+          <text x="${W - padR - 4}" y="${yWarn - 4}" text-anchor="end" font-size="10" fill="var(--accent-amber)" font-family="var(--font-mono)">⚠️ 预警线 ${fmtCompact(warnThreshold)}</text>
+        `;
+      }
+
+      let bars = '';
+      invocations.forEach((inv, idx) => {
+        const inp = Number(inv.input_tokens) || 0;
+        const cache = Number(inv.cache_read_tokens) || 0;
+        const out = Number(inv.output_tokens) || 0;
+        const drop = Number(inv.cache_drop_flag) === 1;
+        const stepIdx = inv.step_index ?? idx;
+
+        const cx = padL + idx * stepX + stepX / 2;
+        const x = cx - barW / 2;
+
+        const hCache = (cache / maxTok) * plotH;
+        const hInp = (inp / maxTok) * plotH;
+        const hOut = (out / maxTok) * plotH;
+
+        const yCache = padT + plotH - hCache;
+        const yInp = yCache - hInp;
+        const yOut = yInp - hOut;
+
+        const hitPct = fmtPct(inv.cache_hit_ratio ?? ((inp + cache) > 0 ? cache / (inp + cache) : 0));
+        const showLabel = invocations.length <= 24 || idx % Math.ceil(invocations.length / 18) === 0;
+
+        bars += `
+          <g style="cursor:pointer;" onclick="scrollToTimelineStep(${Number(stepIdx)})">
+            <title>Turn #${idx + 1} (Step ${stepIdx}) ${drop ? '⚠️ 前缀缓存雪崩/失效!' : ''}\nModel: ${escHtml(inv.model || '')}\nCache Read: ${fmtNum(cache)} (${hitPct})\nFresh Input: ${fmtNum(inp)}\nOutput: ${fmtNum(out)}</title>
+            <rect x="${x}" y="${yCache}" width="${barW}" height="${Math.max(0, hCache)}" fill="var(--tok-cache)" rx="1.5" />
+            <rect x="${x}" y="${yInp}" width="${barW}" height="${Math.max(0, hInp)}" fill="${drop ? 'var(--accent-rose)' : 'var(--tok-input)'}" rx="1.5" />
+            <rect x="${x}" y="${yOut}" width="${barW}" height="${Math.max(0, hOut)}" fill="var(--tok-output)" rx="1.5" />
+            ${drop ? `<circle cx="${cx}" cy="${Math.max(10, yOut - 7)}" r="4.5" fill="var(--accent-rose)" stroke="#fff" stroke-width="1.2" />` : ''}
+            ${showLabel ? `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="9.5" fill="var(--text-secondary)" font-family="var(--font-mono)">#${stepIdx}</text>` : ''}
+          </g>
+        `;
+      });
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}">
+          ${gridLines}
+          ${bars}
+        </svg>
+      `;
+    }
+
+    function renderSessionHotspots(files, commands) {
+      const fEl = document.getElementById('session-file-hotspots');
+      if (fEl) {
+        if (!Array.isArray(files) || files.length === 0) {
+          fEl.innerHTML = `<div class="empty-state">当前会话暂无文件读写记录</div>`;
+        } else {
+          fEl.innerHTML = files.slice(0, 8).map(f => {
+            const rawPath = f.path || f.file_path || f.target_resource || f.uri || '';
+            const uri = f.uri || toFileUri(rawPath);
+            const count = Number(f.count ?? f.access_count ?? 1);
+            const base = rawPath.split(/[\\/]/).pop() || rawPath;
+            return `
+              <div class="hotspot-row">
+                <div class="hotspot-path" title="${escHtml(rawPath)}">
+                  <b>${escHtml(base)}</b>
+                  <span style="color:var(--text-secondary);margin-left:6px;font-size:10.5px;">${escHtml(rawPath)}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                  <span class="badge badge-blue">${fmtNum(count)} 次</span>
+                  <button class="btn btn-sm" onclick="openFileInSidePane('${escHtml(uri.replace(/\\/g, '/'))}')">📂 侧栏打开</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      const cEl = document.getElementById('session-command-hotspots');
+      if (cEl) {
+        if (!Array.isArray(commands) || commands.length === 0) {
+          cEl.innerHTML = `<div class="empty-state">当前会话暂无终端命令执行记录</div>`;
+        } else {
+          cEl.innerHTML = commands.slice(0, 8).map(cmd => {
+            const commandStr = cmd.command || cmd.target_resource || '';
+            const count = Number(cmd.count ?? cmd.exec_count ?? 1);
+            const errs = Number(cmd.error_count ?? 0);
+            const avgMs = Math.round(Number(cmd.avg_duration_ms ?? 0));
+            return `
+              <div class="hotspot-row">
+                <div class="hotspot-path" title="${escHtml(commandStr)}">
+                  <code>$ ${escHtml(commandStr)}</code>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                  ${errs > 0 ? `<span class="badge badge-rose">${errs} err</span>` : ''}
+                  ${avgMs > 0 ? `<span class="badge">${fmtNum(avgMs)}ms</span>` : ''}
+                  <span class="badge badge-amber">${fmtNum(count)} 次</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    function buildMergedTimeline(det) {
+      const items = [];
+      const invByStep = new Map();
+      for (const inv of (det.invocations || [])) {
+        invByStep.set(Number(inv.step_index), inv);
+      }
+
+      const rawTimeline = Array.isArray(det.behavior_timeline) ? det.behavior_timeline : [];
+      const seenPlannerSteps = new Set();
+      const thinkingByStep = new Map();
+
+      for (const ev of rawTimeline) {
+        const sIdx = Number(ev.step_index ?? 0);
+        if (ev.thinking_preview && !thinkingByStep.has(sIdx)) {
+          thinkingByStep.set(sIdx, String(ev.thinking_preview));
+        }
+      }
+
+      for (const ev of rawTimeline) {
+        const sIdx = Number(ev.step_index ?? 0);
+        const evType = String(ev.event_type || 'TOOL_CALL');
+        if (evType === 'PLANNER_RESPONSE') seenPlannerSteps.add(sIdx);
+        const inv = invByStep.get(sIdx);
+        items.push({
+          ...ev,
+          step_index: sIdx,
+          event_type: evType,
+          invocation: inv || null
+        });
+      }
+
+      // Ensure every PLANNER_RESPONSE invocation is represented in the timeline
+      for (const inv of (det.invocations || [])) {
+        const sIdx = Number(inv.step_index ?? 0);
+        if (!seenPlannerSteps.has(sIdx)) {
+          const thinkSnippet = thinkingByStep.get(sIdx) || '';
+          const metaDesc = `模型: ${inv.model || 'unknown'} · 工具调用: ${fmtNum(inv.tool_call_count || 0)} 次 · 思考: ${fmtNum(inv.thinking_chars || 0)} 字 · 回复: ${fmtNum(inv.response_chars || 0)} 字`;
+          items.push({
+            step_index: sIdx,
+            event_type: 'PLANNER_RESPONSE',
+            tool_name: inv.model || 'planner',
+            target_resource: metaDesc,
+            thinking_preview: thinkSnippet,
+            is_error: Number(inv.cache_drop_flag) === 1 ? 1 : 0,
+            created_at: inv.created_at,
+            invocation: inv
+          });
+        }
+      }
+
+      items.sort((a, b) => {
+        if (a.step_index !== b.step_index) return a.step_index - b.step_index;
+        const order = { USER_INPUT: 1, PLANNER_RESPONSE: 2, TOOL_CALL: 3, HOOK_EVENT: 4, STOP: 5 };
+        return (order[a.event_type] || 9) - (order[b.event_type] || 9);
+      });
+
+      return items;
+    }
+
+    function scrollToTimelineStep(stepIdx) {
+      const convId = state.detail?.conversation?.conversation_id;
+      if (!convId) return;
+      const el = document.querySelector(`.timeline-step[data-step-index="${Number(stepIdx)}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      toggleTimelineStepRaw(convId, stepIdx);
+    }
+
+    function renderSessionTimeline() {
+      const container = document.getElementById('session-timeline-list');
+      if (!container || !state.detail) return;
+      const convId = state.detail.conversation.conversation_id;
+      const filterType = document.getElementById('timeline-filter-type')?.value || 'ALL';
+
+      const allItems = buildMergedTimeline(state.detail);
+      const filtered = allItems.filter(item => {
+        if (filterType === 'ALL') return true;
+        if (filterType === 'ERROR') {
+          return Number(item.is_error) === 1 || Number(item.invocation?.cache_drop_flag) === 1;
+        }
+        return item.event_type === filterType;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">当前筛选条件下暂无行为步骤记录</div>`;
+        setTimeout(notifySizeChanged, 40);
+        return;
+      }
+
+      container.innerHTML = filtered.map((item, idx) => {
+        const sIdx = item.step_index;
+        const key = `${convId}:${sIdx}`;
+        const rawData = state.expandedSteps.get(key);
+        const isOpen = rawData !== undefined;
+
+        let typeBadge = `<span class="badge">${escHtml(item.event_type)}</span>`;
+        if (item.event_type === 'USER_INPUT') {
+          typeBadge = `<span class="badge badge-cyan">💬 USER_INPUT</span>`;
+        } else if (item.event_type === 'PLANNER_RESPONSE') {
+          typeBadge = `<span class="badge badge-purple">🧠 PLANNER_RESPONSE</span>`;
+        } else if (item.event_type === 'TOOL_CALL') {
+          typeBadge = `<span class="badge badge-amber">🛠️ ${escHtml(item.tool_name || 'TOOL_CALL')}</span>`;
+        } else if (item.event_type === 'STOP') {
+          typeBadge = `<span class="badge badge-emerald">🏁 STOP</span>`;
+        } else if (item.event_type === 'HOOK_EVENT') {
+          typeBadge = `<span class="badge badge-blue">🪝 ${escHtml(item.tool_name || 'HOOK_EVENT')}</span>`;
+        }
+
+        const isErr = Number(item.is_error) === 1;
+        const isDrop = Number(item.invocation?.cache_drop_flag) === 1;
+
+        let summaryHtml = '';
+        if (item.event_type === 'PLANNER_RESPONSE') {
+          const metaLine = item.target_resource || `模型: ${item.tool_name || 'planner'}`;
+          const thinkLine = item.thinking_preview ? ` · 💭 ${item.thinking_preview}` : '';
+          summaryHtml = `<div class="timeline-step-summary">${escHtml(metaLine)}${thinkLine ? `<span style="color:var(--text-secondary);">${escHtml(thinkLine)}</span>` : ''}</div>`;
+        } else if (item.event_type === 'TOOL_CALL') {
+          const target = item.target_resource || item.thinking_preview || '(无目标参数)';
+          summaryHtml = `<div class="timeline-step-summary is-mono" title="${escHtml(target)}">${escHtml(target)}</div>`;
+        } else if (item.event_type === 'USER_INPUT') {
+          const promptTxt = item.target_resource || item.thinking_preview || '(用户输入)';
+          summaryHtml = `<div class="timeline-step-summary" title="${escHtml(promptTxt)}">${escHtml(promptTxt)}</div>`;
+        } else {
+          const otherTxt = item.target_resource || item.thinking_preview || item.tool_name || '';
+          if (otherTxt) {
+            summaryHtml = `<div class="timeline-step-summary is-mono">${escHtml(otherTxt)}</div>`;
+          }
+        }
+
+        const errLineHtml = (isErr && item.error_message)
+          ? `<div class="timeline-step-error-line">❌ ${escHtml(item.error_message)}</div>`
+          : '';
+
+        let rightMetrics = '';
+        if (item.invocation && item.event_type === 'PLANNER_RESPONSE') {
+          const inv = item.invocation;
+          rightMetrics += `
+            <span style="color:var(--tok-cache);">Cache:${fmtCompact(inv.cache_read_tokens)}</span>
+            <span style="color:var(--tok-input);">In:${fmtCompact(inv.input_tokens)}</span>
+            <span style="color:var(--tok-output);">Out:${fmtCompact(inv.output_tokens)}</span>
+          `;
+        }
+        if (item.duration_ms) {
+          rightMetrics += `<span>⏱️ ${fmtNum(item.duration_ms)}ms</span>`;
+        }
+        if (item.arg_bytes || item.result_bytes) {
+          rightMetrics += `<span>📦 ${fmtCompact((Number(item.arg_bytes)||0) + (Number(item.result_bytes)||0))}B</span>`;
+        }
+
+        return `
+          <div class="timeline-step ${isErr ? 'is-error' : ''}" id="timeline-step-${sIdx}-${idx}" data-step-index="${sIdx}">
+            <div class="timeline-step-header" onclick="toggleTimelineStepRaw('${escHtml(convId)}', ${sIdx})">
+              <div class="timeline-step-top">
+                <div class="timeline-step-left">
+                  <span class="badge" style="min-width:44px;justify-content:center;">#${sIdx}</span>
+                  ${typeBadge}
+                  ${item.event_type === 'PLANNER_RESPONSE' && item.invocation?.model ? `<span class="badge">${escHtml(item.invocation.model)}</span>` : ''}
+                  ${isErr ? `<span class="badge badge-rose">❌ Error</span>` : ''}
+                  ${isDrop ? `<span class="badge badge-rose">⚠️ 缓存雪崩</span>` : ''}
+                </div>
+                <div class="timeline-step-right">
+                  ${rightMetrics}
+                  <span>${fmtTime(item.created_at)}</span>
+                  <span style="color:var(--accent-primary);font-weight:700;">${isOpen ? '▲ 收起原文' : '▼ 钻取原文'}</span>
+                </div>
+              </div>
+              ${summaryHtml}
+              ${errLineHtml}
+            </div>
+            <div class="step-raw-drawer ${isOpen ? 'open' : ''}">
+              ${isOpen ? renderStepRawDrawerContent(rawData, convId, sIdx) : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+      setTimeout(notifySizeChanged, 40);
+    }
+
+    async function toggleTimelineStepRaw(convId, stepIndex) {
+      const key = `${convId}:${stepIndex}`;
+      if (state.expandedSteps.has(key)) {
+        state.expandedSteps.delete(key);
+        renderSessionTimeline();
+        return;
+      }
+
+      state.expandedSteps.set(key, { loading: true });
+      renderSessionTimeline();
+
+      try {
+        const res = await callServerTool('app_get_step_raw', {
+          conversation_id: convId,
+          step_index: Number(stepIndex)
+        });
+        state.expandedSteps.set(key, res || { error: '未返回原文内容' });
+      } catch (err) {
+        state.expandedSteps.set(key, { error: String(err?.message || err) });
+      }
+      renderSessionTimeline();
+    }
+
+    function renderStepRawDrawerContent(raw, convId, stepIndex) {
+      if (!raw) return '';
+      if (raw.loading) {
+        return `<div style="color:var(--text-secondary);font-size:12px;">⏳ 正在按字节偏移从 <code>transcript.jsonl</code> 读取 Step #${stepIndex} 原文...</div>`;
+      }
+      if (raw.error && !raw.thinking && !raw.tool_calls && !raw.content && !raw.step) {
+        return `<div style="color:var(--accent-rose);font-size:12px;">⚠️ 读取失败: ${escHtml(raw.error)}</div>`;
+      }
+
+      const stepObj = raw.step || raw.raw_step || raw;
+      const thinking = raw.thinking ?? stepObj.thinking ?? '';
+      const toolCalls = raw.tool_calls ?? stepObj.tool_calls ?? [];
+      const rawContent = raw.content ?? stepObj.content ?? '';
+      const toolResults = Array.isArray(raw.tool_results) ? raw.tool_results : [];
+      const content = rawContent || (toolResults.length > 0 ? toolResults : '');
+      const tokHeaders = raw.token_headers || raw.tokens || raw.usage || {
+        model: stepObj.model || raw.model,
+        input_tokens: stepObj.input_tokens ?? raw.input_tokens,
+        cache_read_tokens: stepObj.cache_read_tokens ?? raw.cache_read_tokens,
+        output_tokens: stepObj.output_tokens ?? raw.output_tokens,
+        created_at: stepObj.created_at ?? raw.created_at
+      };
+      if (!tokHeaders.model && (raw.model || stepObj.model)) {
+        tokHeaders.model = raw.model || stepObj.model;
+      }
+
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div class="legend-row">
+            <span class="badge badge-blue">Step #${stepIndex} 原文载荷</span>
+            ${tokHeaders.model ? `<span class="badge">Model: ${escHtml(tokHeaders.model)}</span>` : ''}
+            ${tokHeaders.input_tokens !== undefined ? `<span class="badge badge-blue">Input: ${fmtNum(tokHeaders.input_tokens)}</span>` : ''}
+            ${tokHeaders.cache_read_tokens !== undefined ? `<span class="badge badge-emerald">Cache Read: ${fmtNum(tokHeaders.cache_read_tokens)}</span>` : ''}
+            ${tokHeaders.output_tokens !== undefined ? `<span class="badge badge-purple">Output: ${fmtNum(tokHeaders.output_tokens)}</span>` : ''}
+          </div>
+          ${raw.transcript_path ? `<button class="btn btn-sm" onclick="openFileInSidePane('${escHtml(String(raw.transcript_path).replace(/\\/g, '/'))}')">📂 在侧边栏打开 transcript.jsonl</button>` : ''}
+        </div>
+
+        ${thinking ? `
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--cat-thinking);margin-bottom:4px;">💭 原始思维链 (Raw Thinking):</div>
+            <pre class="code-block">${escHtml(thinking)}</pre>
+          </div>
+        ` : ''}
+
+        ${Array.isArray(toolCalls) && toolCalls.length > 0 ? `
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--accent-amber);margin-bottom:4px;">🛠️ 工具调用完整 JSON 参数 (tool_calls: ${toolCalls.length}):</div>
+            <pre class="code-block">${escHtml(JSON.stringify(toolCalls, null, 2))}</pre>
+          </div>
+        ` : ''}
+
+        ${content ? `
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--accent-cyan);margin-bottom:4px;">📄 步骤正文 / 工具执行返回输出 (Content / Tool Results):</div>
+            <pre class="code-block">${escHtml(typeof content === 'string' ? content : JSON.stringify(content, null, 2))}</pre>
+          </div>
+        ` : ''}
+        ${rawContent && toolResults.length > 0 ? `
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--accent-emerald);margin-bottom:4px;">📥 关联工具执行结果 (tool_results: ${toolResults.length}):</div>
+            <pre class="code-block">${escHtml(JSON.stringify(toolResults, null, 2))}</pre>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    /*************************************************************************
+     * 8. TAB 3: FLEET VIEW (多 AGENT 舰队) RENDERERS
+     *************************************************************************/
+    function renderFleetTab() {
+      const bannerEl = document.getElementById('fleet-overview-banner');
+      const planCard = document.getElementById('fleet-plan-card');
+      const gridEl = document.getElementById('fleet-agents-grid');
+      if (!bannerEl || !gridEl) return;
+
+      // Gather fleet nodes from state.detail.fleet OR from state.overview parent-child tree
+      const nodes = extractFleetNodes();
+      if (nodes.length === 0) {
+        bannerEl.innerHTML = `<div class="empty-state">当前未选中会话或尚无会话数据</div>`;
+        gridEl.innerHTML = '';
+        if (planCard) planCard.style.display = 'none';
+        return;
+      }
+
+      const fleetTotalTokens = Math.max(1, nodes.reduce((s, n) => s + n.total_tokens, 0));
+      const fleetCacheTokens = nodes.reduce((s, n) => s + n.total_cache_read_tokens, 0);
+      const fleetInputTokens = nodes.reduce((s, n) => s + n.total_input_tokens, 0);
+      const fleetOutputTokens = nodes.reduce((s, n) => s + n.total_output_tokens, 0);
+      const fleetTools = nodes.reduce((s, n) => s + n.total_tool_calls, 0);
+      const fleetHit = (fleetInputTokens + fleetCacheTokens) > 0
+        ? fleetCacheTokens / (fleetInputTokens + fleetCacheTokens)
+        : 0;
+
+      const palette = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f43f5e'];
+
+      const shareSegments = nodes.map((n, i) => {
+        const w = ((n.total_tokens / fleetTotalTokens) * 100).toFixed(2);
+        const col = palette[i % palette.length];
+        return `<div class="token-bar-seg" style="width:${w}%;background:${col}" title="@${escHtml(n.agent_role)}: ${fmtNum(n.total_tokens)} (${w}%)"></div>`;
+      }).join('');
+
+      const shareLegend = nodes.map((n, i) => {
+        const w = ((n.total_tokens / fleetTotalTokens) * 100).toFixed(1);
+        const col = palette[i % palette.length];
+        return `
+          <span class="legend-item">
+            <span class="legend-dot" style="background:${col}"></span>
+            <b>@${escHtml(n.agent_role)}</b>: ${fmtCompact(n.total_tokens)} (${w}%)
+          </span>
+        `;
+      }).join('');
+
+      bannerEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;padding-top:6px;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="--kpi-accent:var(--accent-purple);">
+              <div class="kpi-label"><span>舰队成员总数 (Fleet Agents)</span></div>
+              <div class="kpi-value">${fmtNum(nodes.length)}</div>
+              <div class="kpi-meta"><span>1 主控 Coordinator + ${Math.max(0, nodes.length - 1)} 子智能体</span></div>
+            </div>
+            <div class="kpi-card" style="--kpi-accent:var(--accent-primary);">
+              <div class="kpi-label"><span>舰队总计 Token (Fleet Total)</span></div>
+              <div class="kpi-value">${fmtCompact(fleetTotalTokens)}</div>
+              <div class="kpi-meta"><span>In: ${fmtCompact(fleetInputTokens)} · Cache: ${fmtCompact(fleetCacheTokens)} · Out: ${fmtCompact(fleetOutputTokens)}</span></div>
+            </div>
+            <div class="kpi-card" style="--kpi-accent:var(--accent-emerald);">
+              <div class="kpi-label"><span>舰队综合缓存命中率</span></div>
+              <div class="kpi-value" style="color:var(--accent-emerald);">${fmtPct(fleetHit)}</div>
+              <div class="kpi-meta"><span>跨 Agent 共享前缀缓存加速</span></div>
+            </div>
+            <div class="kpi-card" style="--kpi-accent:var(--accent-amber);">
+              <div class="kpi-label"><span>舰队累计工具调用</span></div>
+              <div class="kpi-value">${fmtNum(fleetTools)}</div>
+              <div class="kpi-meta"><span>全舰队并发工具吞吐</span></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:600;margin-bottom:6px;">📊 舰队成员 Token 消耗占比分布 (Fleet Token Share):</div>
+            <div class="token-bar-stack" style="height:10px;">${shareSegments}</div>
+            <div class="legend-row" style="margin-top:8px;">${shareLegend}</div>
+          </div>
+        </div>
+      `;
+
+      // Check for Swarm plan.json info
+      const planJson = state.detail?.fleet?.plan_json || state.detail?.fleet?.plan;
+      if (planCard) {
+        if (planJson && typeof planJson === 'object' && Object.keys(planJson).length > 0) {
+          planCard.style.display = 'flex';
+          const rawGoal = planJson.goal || planJson.title || planJson.description || 'Swarm 协同任务计划';
+          const goalText = (rawGoal && typeof rawGoal === 'object')
+            ? `${rawGoal.title || ''}${rawGoal.line ? ' — ' + rawGoal.line : ''}`
+            : String(rawGoal);
+          const threads = Array.isArray(planJson.threads) ? planJson.threads : (Array.isArray(planJson.members) ? planJson.members : []);
+          planCard.innerHTML = `
+            <div class="card-header">
+              <div class="card-title">📋 Swarm Plan 协同目标与线程定义 (<code>.system_generated/swarm/plan.json</code>)</div>
+            </div>
+            <div style="font-size:12.5px;background:var(--bg-tertiary);padding:10px 12px;border-radius:var(--radius-sm);">
+              <b>Goal:</b> ${escHtml(goalText)}
+            </div>
+            ${threads.length > 0 ? `
+              <div class="legend-row">
+                ${threads.map(t => `<span class="badge badge-purple">${escHtml(t.title || t.name || t.role || t.id || JSON.stringify(t))}${Array.isArray(t.tasks) ? ' (' + escHtml(t.tasks.join(', ')) + ')' : ''}</span>`).join('')}
+              </div>
+            ` : ''}
+          `;
+        } else {
+          planCard.style.display = 'none';
+        }
+      }
+
+      // Render per-agent cards
+      gridEl.innerHTML = nodes.map((n, i) => {
+        const sharePct = ((n.total_tokens / fleetTotalTokens) * 100).toFixed(1);
+        const col = palette[i % palette.length];
+        const isRoot = !n.parent_conversation_id || i === 0;
+        const isCurrent = n.conversation_id === state.selectedConversationId;
+
+        return `
+          <div class="fleet-agent-card ${isRoot ? 'is-coordinator' : ''}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="badge ${isRoot ? 'badge-blue' : 'badge-purple'}">
+                  ${isRoot ? '👑 Coordinator / Root' : `🐝 @${escHtml(n.agent_role)}`}
+                </span>
+                <span class="badge">#${escHtml(n.conversation_id.slice(0, 8))}</span>
+                ${isCurrent ? `<span class="badge badge-emerald">当前选中</span>` : ''}
+              </div>
+              <span style="font-family:var(--font-mono);font-weight:800;font-size:14px;color:${col};">${sharePct}%</span>
+            </div>
+
+            <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.title)}">
+              ${escHtml(n.title)}
+            </div>
+
+            <div class="h-bar-track" style="height:7px;">
+              <div class="h-bar-fill" style="width:${sharePct}%;background:${col};"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:11.5px;background:var(--bg-secondary);padding:8px 10px;border-radius:var(--radius-sm);">
+              <div>总计 Token: <b style="font-family:var(--font-mono);">${fmtCompact(n.total_tokens)}</b></div>
+              <div>缓存命中率: <b style="font-family:var(--font-mono);color:var(--accent-emerald);">${fmtPct(n.cache_hit_ratio)}</b></div>
+              <div>Cache Read: <span style="font-family:var(--font-mono);">${fmtCompact(n.total_cache_read_tokens)}</span></div>
+              <div>Fresh Input: <span style="font-family:var(--font-mono);">${fmtCompact(n.total_input_tokens)}</span></div>
+              <div>Model Output: <span style="font-family:var(--font-mono);">${fmtCompact(n.total_output_tokens)}</span></div>
+              <div>工具调用: <b style="font-family:var(--font-mono);">${fmtNum(n.total_tool_calls)}</b> 次</div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;">
+              <span class="badge">${escHtml(n.primary_model)}</span>
+              <button class="btn btn-sm btn-primary" onclick="selectConversation('${escHtml(n.conversation_id)}', 'session')">🔬 进入该 Agent 单步深潜 →</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function extractFleetNodes() {
+      const seen = new Set();
+      const result = [];
+      const addNode = (raw) => {
+        const n = normalizeConvRow(raw);
+        if (!n || !n.conversation_id || seen.has(n.conversation_id)) return;
+        seen.add(n.conversation_id);
+        result.push(n);
+      };
+
+      const fl = state.detail?.fleet;
+      if (fl) {
+        if (Array.isArray(fl)) {
+          fl.forEach(addNode);
+        } else if (typeof fl === 'object') {
+          if (fl.root) addNode(fl.root);
+          if (fl.coordinator) addNode(fl.coordinator);
+          if (fl.parent) addNode(fl.parent);
+          const lists = [fl.members, fl.workers, fl.children, fl.nodes, fl.agents];
+          for (const arr of lists) {
+            if (Array.isArray(arr)) arr.forEach(addNode);
+          }
+        }
+      }
+
+      // Also link from overview conversations if the selected session belongs to a root with children
+      const curId = state.selectedConversationId || state.detail?.conversation?.conversation_id;
+      const roots = state.overview?.conversations || [];
+      for (const r of roots) {
+        const matchesRoot = r.conversation_id === curId;
+        const matchesChild = Array.isArray(r.children) && r.children.some(ch => ch.conversation_id === curId);
+        if (matchesRoot || matchesChild) {
+          addNode(r);
+          if (Array.isArray(r.children)) r.children.forEach(addNode);
+        }
+      }
+
+      if (result.length === 0 && state.detail?.conversation) {
+        addNode(state.detail.conversation);
+      }
+      return result;
+    }
+
+    /*************************************************************************
+     * 9. TAB 4: SETTINGS & EXPORT RENDERERS & ACTIONS
+     *************************************************************************/
+    function renderSettingsTab() {
+      const s = state.settings;
+      const warnInput = document.getElementById('set-warn-threshold');
+      const limitInput = document.getElementById('set-window-limit');
+      const hookCheck = document.getElementById('set-enable-hook');
+      const costCheck = document.getElementById('set-show-cost');
+
+      if (warnInput) warnInput.value = s.context_warn_threshold;
+      if (limitInput) limitInput.value = s.context_window_limit;
+      if (hookCheck) hookCheck.checked = !!s.enable_context_warn_hook;
+      if (costCheck) costCheck.checked = !!s.show_cost_estimates;
+
+      const tbody = document.getElementById('pricebook-tbody');
+      if (!tbody) return;
+      const pb = s.pricebook || { default: { input_per_1m: 1.25, cache_read_per_1m: 0.125, output_per_1m: 5.0 } };
+
+      tbody.innerHTML = Object.entries(pb).map(([modelKey, rates]) => `
+        <tr class="pricebook-row">
+          <td><input type="text" class="input-control pb-key" value="${escHtml(modelKey)}" ${modelKey === 'default' ? 'readonly' : ''} style="width:100%;font-family:var(--font-mono);" /></td>
+          <td><input type="number" step="0.01" class="input-control pb-inp" value="${Number(rates.input_per_1m ?? 1.25)}" style="width:120px;font-family:var(--font-mono);" /></td>
+          <td><input type="number" step="0.005" class="input-control pb-cache" value="${Number(rates.cache_read_per_1m ?? 0.125)}" style="width:120px;font-family:var(--font-mono);" /></td>
+          <td><input type="number" step="0.01" class="input-control pb-out" value="${Number(rates.output_per_1m ?? 5.0)}" style="width:120px;font-family:var(--font-mono);" /></td>
+          <td>
+            ${modelKey === 'default' ? '<span class="badge">默认兜底</span>' : '<button class="btn btn-sm" onclick="this.closest(\'tr\').remove()">🗑️ 删除</button>'}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function addPricebookRow() {
+      const tbody = document.getElementById('pricebook-tbody');
+      if (!tbody) return;
+      const tr = document.createElement('tr');
+      tr.className = 'pricebook-row';
+      tr.innerHTML = `
+        <td><input type="text" class="input-control pb-key" placeholder="例如: claude-sonnet-4" style="width:100%;font-family:var(--font-mono);" /></td>
+        <td><input type="number" step="0.01" class="input-control pb-inp" value="3.00" style="width:120px;font-family:var(--font-mono);" /></td>
+        <td><input type="number" step="0.005" class="input-control pb-cache" value="0.30" style="width:120px;font-family:var(--font-mono);" /></td>
+        <td><input type="number" step="0.01" class="input-control pb-out" value="15.00" style="width:120px;font-family:var(--font-mono);" /></td>
+        <td><button class="btn btn-sm" onclick="this.closest('tr').remove()">🗑️ 删除</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    async function saveSettingsFromForm() {
+      const warn = Number(document.getElementById('set-warn-threshold')?.value) || 120000;
+      const limit = Number(document.getElementById('set-window-limit')?.value) || 200000;
+      const enableHook = !!document.getElementById('set-enable-hook')?.checked;
+      const showCost = !!document.getElementById('set-show-cost')?.checked;
+
+      const pricebook = {};
+      document.querySelectorAll('#pricebook-tbody tr.pricebook-row').forEach(tr => {
+        const key = (tr.querySelector('.pb-key')?.value || '').trim();
+        if (!key) return;
+        pricebook[key] = {
+          input_per_1m: Number(tr.querySelector('.pb-inp')?.value) || 0,
+          cache_read_per_1m: Number(tr.querySelector('.pb-cache')?.value) || 0,
+          output_per_1m: Number(tr.querySelector('.pb-out')?.value) || 0
+        };
+      });
+      if (!pricebook.default) {
+        pricebook.default = { input_per_1m: 1.25, cache_read_per_1m: 0.125, output_per_1m: 5.0 };
+      }
+
+      const newSettings = {
+        context_warn_threshold: warn,
+        context_window_limit: limit,
+        enable_context_warn_hook: enableHook,
+        show_cost_estimates: showCost,
+        pricebook
+      };
+
+      state.settings = newSettings;
+      renderAll();
+
+      try {
+        await callServerTool('app_update_settings', { settings: newSettings });
+        showToast('配置已保存并持久化到 SQLite');
+      } catch (err) {
+        showToast('本地状态已更新');
+      }
+    }
+
+    async function runExportReport(format) {
+      const scopeVal = document.getElementById('export-scope-select')?.value || '';
+      const convId = scopeVal === 'CURRENT' ? (state.selectedConversationId || undefined) : undefined;
+      const box = document.getElementById('export-preview-box');
+      if (box) box.textContent = `⏳ 正在生成 ${format.toUpperCase()} 报告...`;
+
+      try {
+        const res = await callServerTool('export_token_report', {
+          conversation_id: convId,
+          format
+        });
+
+        let text = '';
+        if (typeof res === 'string') {
+          text = res;
+        } else if (res && typeof res.report === 'string') {
+          text = res.report;
+        } else if (res && typeof res.content === 'string') {
+          text = res.content;
+        } else if (res && typeof res.text === 'string') {
+          text = res.text;
+        } else {
+          text = JSON.stringify(res, null, 2);
+        }
+
+        state.lastExportText = text;
+        state.lastExportFormat = format;
+        if (box) box.textContent = text;
+        showToast(`已生成 ${format.toUpperCase()} 遥测报告`);
+      } catch (err) {
+        if (box) box.textContent = `导出失败: ${err?.message || err}`;
+      }
+    }
+
+    async function copyExportPreview() {
+      const text = state.lastExportText || document.getElementById('export-preview-box')?.textContent || '';
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('报告内容已复制到剪贴板');
+      } catch (_) {
+        showToast('复制失败，请手动全选复制');
+      }
+    }
+
+    function downloadExportPreview() {
+      const text = state.lastExportText || document.getElementById('export-preview-box')?.textContent || '';
+      if (!text) return;
+      const extMap = { markdown: 'md', json: 'json', csv: 'csv' };
+      const ext = extMap[state.lastExportFormat] || 'txt';
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `token-behavior-report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`已触发下载 (.${ext})`);
+    }
+
+    // Boot MCP App
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAll();
+      initMcpApp();
+    });
+  </script>
+</body>
+</html>
