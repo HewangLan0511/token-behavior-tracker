@@ -1,5 +1,7 @@
 # Token & AI Behavior Tracker (`token-behavior-tracker`)
 
+> **专为 Google Antigravity（反重力）设计的插件** · Built specifically for **Google Antigravity**
+
 An Antigravity plugin (inspired by `dsh-context`) that records, analyzes, and visualizes **per-conversation** and **global** token consumption, prompt cache hit rates, 5-category context window composition, multi-agent Swarm fleet hierarchy, and AI tool behaviors.
 
 ---
@@ -55,7 +57,9 @@ token-behavior-tracker/
 Run the deployment script to install the plugin globally and pre-populate the SQLite database from existing `brain/` transcripts:
 
 ```bash
-python d:\antigravity_workplace\token-behavior-tracker\deploy.py
+git clone https://github.com/HewangLan0511/token-behavior-tracker.git
+cd token-behavior-tracker
+python deploy.py
 ```
 
 Once enabled, you can:
